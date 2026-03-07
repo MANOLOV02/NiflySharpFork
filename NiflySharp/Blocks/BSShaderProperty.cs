@@ -50,7 +50,7 @@ namespace NiflySharp.Blocks
         public bool IsTypeTerrain => TerrainType(this);
 
         /// <summary>
-        /// Required for skinned meshes.
+        /// Required for skinned meshes (flag).
         /// </summary>
         public bool Skinned
         {
@@ -59,7 +59,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Double-sided/two-sided rendering.
+        /// Double-sided/two-sided rendering (flag).
         /// </summary>
         public bool DoubleSided
         {
@@ -77,7 +77,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Use model space normals and an external specular map.
+        /// Use model space normals and an external specular map (flag).
         /// </summary>
         public bool ModelSpace
         {
@@ -86,7 +86,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Provides its own emittance color. (will not absorb light/ambient color?)
+        /// Provides its own emittance color. (will not absorb light/ambient color?) (flag)
         /// </summary>
         public bool Emissive
         {
@@ -95,7 +95,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Enables specularity.
+        /// Enables specularity (flag).
         /// </summary>
         public bool HasSpecular
         {
@@ -104,7 +104,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Enables rendering of/has vertex colors.
+        /// Enables rendering of/has vertex colors (flag).
         /// </summary>
         public bool HasVertexColors
         {
@@ -113,7 +113,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Enables using alpha component of vertex colors.
+        /// Enables using alpha component of vertex colors (flag).
         /// </summary>
         public bool HasVertexAlpha
         {
@@ -122,7 +122,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Use soft lighting map.
+        /// Use soft lighting map flag.
         /// </summary>
         public bool HasSoftlight
         {
@@ -131,7 +131,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Use back lighting map.
+        /// Use back lighting map flag.
         /// </summary>
         public bool HasBacklight
         {
@@ -140,7 +140,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Use rim lighting map.
+        /// Use rim lighting map flag.
         /// </summary>
         public bool HasRimlight
         {
@@ -149,7 +149,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Use glow map.
+        /// Use glow map flag.
         /// </summary>
         public bool HasGlowmap
         {
@@ -158,7 +158,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Use greyscale to palette color in BSEffectShaderProperty.
+        /// Use greyscale to palette color in BSEffectShaderProperty (flag).
         /// </summary>
         public bool HasGreyscaleToPaletteColor
         {
@@ -167,7 +167,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Use greyscale to palette alpha in BSEffectShaderProperty.
+        /// Use greyscale to palette alpha in BSEffectShaderProperty (flag).
         /// </summary>
         public bool HasGreyscaleToPaletteAlpha
         {
@@ -176,7 +176,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Environment mapping (uses environment map scale).
+        /// Environment mapping flag (uses environment map scale).
         /// </summary>
         public bool HasEnvironmentMapping
         {
@@ -185,7 +185,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Environment mapping for eyes.
+        /// Environment mapping flag for eyes.
         /// </summary>
         public bool HasEyeEnvironmentMapping
         {
@@ -194,7 +194,7 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Has external emittance.
+        /// Has external emittance (flag).
         /// </summary>
         public bool HasExternalEmittance
         {

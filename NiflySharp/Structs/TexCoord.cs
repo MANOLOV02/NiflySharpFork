@@ -4,8 +4,9 @@
 	/// Vector with 2 float components (uv)
 	/// </summary>
 	public partial struct TexCoord
-    {
+	{
 		public static readonly TexCoord Zero = new();
+		public static readonly TexCoord One = new(1.0f, 1.0f);
 
 		public TexCoord(float u, float v)
 		{
@@ -41,6 +42,6 @@
 		public static TexCoord operator -(TexCoord a, TexCoord b)
 		{
 			return new TexCoord(a.U - b.U, a.V - b.V);
-        }
-    }
+		}
+	}
 }

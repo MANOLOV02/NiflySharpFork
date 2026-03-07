@@ -187,9 +187,9 @@ namespace NiflySharp
         /// </summary>
         bool HasTreeAnim { get; set; }
 
-        Vector2 UVOffset => Vector2.Zero;
-        Vector2 UVScale => Vector2.One;
-        Vector3 SpecularColor => Vector3.Zero;
+        TexCoord UVOffset => TexCoord.Zero;
+        TexCoord UVScale => TexCoord.One;
+        Color3 SpecularColor => Color3.Zero;
         float SpecularStrength => 0.0f;
         float Glossiness => 0.0f;
         float EnvironmentMapScale => 0.0f;
@@ -202,6 +202,6 @@ namespace NiflySharp
         float SubsurfaceRolloff => 0.3f;
         float GrayscaleToPaletteScale => 1.0f;
         float FresnelPower => 5.0f;
-        string WetMaterialName => null;
+        string RootMaterialName => null;
     }
 }
