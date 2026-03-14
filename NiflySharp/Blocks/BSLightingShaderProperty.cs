@@ -10,7 +10,7 @@ namespace NiflySharp.Blocks
     public partial class BSLightingShaderProperty : BSShaderProperty, INiShader
     {
         public bool HasTextureSet => !_textureSet?.IsEmpty() ?? false;
-        public NiBlockRef<BSShaderTextureSet> TextureSetRef => _textureSet;
+        public NiBlockRef<BSShaderTextureSet> TextureSetRef { get => _textureSet; set => _textureSet = value; }
 
         public BSShaderType155 ShaderType_FO76_SF { get => _shaderType_BSST155; set => _shaderType_BSST155 = value; }
 

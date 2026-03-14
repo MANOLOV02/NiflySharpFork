@@ -5,7 +5,7 @@ namespace NiflySharp.Blocks
     public partial class BSShaderPPLightingProperty : BSShaderLightingProperty, INiShader
     {
         public bool HasTextureSet => !_textureSet?.IsEmpty() ?? false;
-        public NiBlockRef<BSShaderTextureSet> TextureSetRef => _textureSet;
+        public NiBlockRef<BSShaderTextureSet> TextureSetRef { get => _textureSet; set => _textureSet = value; }
 
         /// <summary>
         /// The amount of distortion. **Not based on physically accurate refractive index** (0=none) (0-1)
