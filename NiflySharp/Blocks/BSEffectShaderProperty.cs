@@ -107,7 +107,7 @@ namespace NiflySharp.Blocks
         /// <summary>
         /// Alpha falloff multiplier at end angle
         /// </summary>
-        public float FalloffStopOpacity { get => FalloffStopOpacity; set => FalloffStopOpacity = value; }
+        public float FalloffStopOpacity { get => _falloffStopOpacity; set => _falloffStopOpacity = value; }
 
         /// <summary>
         /// Refraction Power (starting with FO76).
