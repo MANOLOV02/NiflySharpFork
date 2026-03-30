@@ -1219,7 +1219,7 @@ namespace NiflySharp.Blocks
             {
                 for (ushort i = 0; i < _numVertices; i++)
                 {
-                    spanRawBiTangents[i].X = (byte)_vertexData_List_BSVDSSE[i].BitangentX;
+                    spanRawBiTangents[i].X = _vertexData_List_BSVDSSE[i].BitangentX;
                     spanRawBiTangents[i].Y = (byte)_vertexData_List_BSVDSSE[i].BitangentY / 255.0f * 2.0f - 1.0f;
                     spanRawBiTangents[i].Z = (byte)_vertexData_List_BSVDSSE[i].BitangentZ / 255.0f * 2.0f - 1.0f;
                 }
@@ -1230,7 +1230,7 @@ namespace NiflySharp.Blocks
                 {
                     for (ushort i = 0; i < _numVertices; i++)
                     {
-                        spanRawBiTangents[i].X = (byte)_vertexData_List_BSVD[i].BitangentX;
+                        spanRawBiTangents[i].X = _vertexData_List_BSVD[i].BitangentX;
                         spanRawBiTangents[i].Y = (byte)_vertexData_List_BSVD[i].BitangentY / 255.0f * 2.0f - 1.0f;
                         spanRawBiTangents[i].Z = (byte)_vertexData_List_BSVD[i].BitangentZ / 255.0f * 2.0f - 1.0f;
                     }
