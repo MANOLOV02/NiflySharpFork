@@ -222,7 +222,7 @@ namespace NiflySharp.Blocks
             {
                 if (value)
                 {
-                    if (_vertexDesc.VertexAttributes.HasFlag(VertexAttribute.Vertex_Colors))
+                    if (!_vertexDesc.VertexAttributes.HasFlag(VertexAttribute.Vertex_Colors))
                     {
                         // Make all color values white
                         if (_vertexData_List_BSVDSSE != null)
