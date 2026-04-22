@@ -1105,25 +1105,26 @@ namespace NiflySharp.Blocks
 
         internal List<Vector3> UpdateRawVertexPositions()
         {
-            rawVertexPositions = rawVertexPositions.Resize(_numVertices);
+            ushort vertexCount = VertexCount;
+            rawVertexPositions = rawVertexPositions.Resize(vertexCount);
 
             var spanRawVertices = CollectionsMarshal.AsSpan(rawVertexPositions);
 
             if (_vertexData_List_BSVDSSE != null)
             {
-                for (ushort i = 0; i < _numVertices; i++)
+                for (ushort i = 0; i < vertexCount; i++)
                     spanRawVertices[i] = _vertexData_List_BSVDSSE[i].Vertex;
             }
             else if (_vertexData_List_BSVD != null)
             {
                 if (IsFullPrecision)
                 {
-                    for (ushort i = 0; i < _numVertices; i++)
+                    for (ushort i = 0; i < vertexCount; i++)
                         spanRawVertices[i] = _vertexData_List_BSVD[i].Vertex;
                 }
                 else
                 {
-                    for (ushort i = 0; i < _numVertices; i++)
+                    for (ushort i = 0; i < vertexCount; i++)
                     {
                         spanRawVertices[i].X = (float)_vertexData_List_BSVD[i].VertexHalf.X;
                         spanRawVertices[i].Y = (float)_vertexData_List_BSVD[i].VertexHalf.Y;
@@ -1143,13 +1144,14 @@ namespace NiflySharp.Blocks
                 return rawNormals;
             }
 
-            rawNormals = rawNormals.Resize(_numVertices);
+            ushort vertexCount = VertexCount;
+            rawNormals = rawNormals.Resize(vertexCount);
 
             var spanRawNormals = CollectionsMarshal.AsSpan(rawNormals);
 
             if (_vertexData_List_BSVDSSE != null)
             {
-                for (ushort i = 0; i < _numVertices; i++)
+                for (ushort i = 0; i < vertexCount; i++)
                 {
                     spanRawNormals[i].X = (byte)_vertexData_List_BSVDSSE[i].Normal.X / 255.0f * 2.0f - 1.0f;
                     spanRawNormals[i].Y = (byte)_vertexData_List_BSVDSSE[i].Normal.Y / 255.0f * 2.0f - 1.0f;
@@ -1158,7 +1160,7 @@ namespace NiflySharp.Blocks
             }
             else if (_vertexData_List_BSVD != null)
             {
-                for (ushort i = 0; i < _numVertices; i++)
+                for (ushort i = 0; i < vertexCount; i++)
                 {
                     spanRawNormals[i].X = (byte)_vertexData_List_BSVD[i].Normal.X / 255.0f * 2.0f - 1.0f;
                     spanRawNormals[i].Y = (byte)_vertexData_List_BSVD[i].Normal.Y / 255.0f * 2.0f - 1.0f;
@@ -1177,13 +1179,14 @@ namespace NiflySharp.Blocks
                 return rawUVs;
             }
 
-            rawUVs = rawUVs.Resize(_numVertices);
+            ushort vertexCount = VertexCount;
+            rawUVs = rawUVs.Resize(vertexCount);
 
             var spanRawTangents = CollectionsMarshal.AsSpan(rawUVs);
 
             if (_vertexData_List_BSVDSSE != null)
             {
-                for (ushort i = 0; i < _numVertices; i++)
+                for (ushort i = 0; i < vertexCount; i++)
                 {
                     spanRawTangents[i].X = (byte)_vertexData_List_BSVDSSE[i].Tangent.X / 255.0f * 2.0f - 1.0f;
                     spanRawTangents[i].Y = (byte)_vertexData_List_BSVDSSE[i].Tangent.Y / 255.0f * 2.0f - 1.0f;
@@ -1192,7 +1195,7 @@ namespace NiflySharp.Blocks
             }
             else if (_vertexData_List_BSVD != null)
             {
-                for (ushort i = 0; i < _numVertices; i++)
+                for (ushort i = 0; i < vertexCount; i++)
                 {
                     spanRawTangents[i].X = (byte)_vertexData_List_BSVD[i].Tangent.X / 255.0f * 2.0f - 1.0f;
                     spanRawTangents[i].Y = (byte)_vertexData_List_BSVD[i].Tangent.Y / 255.0f * 2.0f - 1.0f;
@@ -1211,13 +1214,14 @@ namespace NiflySharp.Blocks
                 return rawBitangents;
             }
 
-            rawBitangents = rawBitangents.Resize(_numVertices);
+            ushort vertexCount = VertexCount;
+            rawBitangents = rawBitangents.Resize(vertexCount);
 
             var spanRawBiTangents = CollectionsMarshal.AsSpan(rawBitangents);
 
             if (_vertexData_List_BSVDSSE != null)
             {
-                for (ushort i = 0; i < _numVertices; i++)
+                for (ushort i = 0; i < vertexCount; i++)
                 {
                     spanRawBiTangents[i].X = _vertexData_List_BSVDSSE[i].BitangentX;
                     spanRawBiTangents[i].Y = (byte)_vertexData_List_BSVDSSE[i].BitangentY / 255.0f * 2.0f - 1.0f;
@@ -1228,7 +1232,7 @@ namespace NiflySharp.Blocks
             {
                 if (IsFullPrecision)
                 {
-                    for (ushort i = 0; i < _numVertices; i++)
+                    for (ushort i = 0; i < vertexCount; i++)
                     {
                         spanRawBiTangents[i].X = _vertexData_List_BSVD[i].BitangentX;
                         spanRawBiTangents[i].Y = (byte)_vertexData_List_BSVD[i].BitangentY / 255.0f * 2.0f - 1.0f;
@@ -1237,7 +1241,7 @@ namespace NiflySharp.Blocks
                 }
                 else
                 {
-                    for (ushort i = 0; i < _numVertices; i++)
+                    for (ushort i = 0; i < vertexCount; i++)
                     {
                         spanRawBiTangents[i].X = (float)_vertexData_List_BSVD[i].BitangentXHalf;
                         spanRawBiTangents[i].Y = (byte)_vertexData_List_BSVD[i].BitangentY / 255.0f * 2.0f - 1.0f;
@@ -1257,13 +1261,14 @@ namespace NiflySharp.Blocks
                 return rawUvs;
             }
 
-            rawUvs = rawUvs.Resize(_numVertices);
+            ushort vertexCount = VertexCount;
+            rawUvs = rawUvs.Resize(vertexCount);
 
             var spanRawUVs = CollectionsMarshal.AsSpan(rawUvs);
 
             if (_vertexData_List_BSVDSSE != null)
             {
-                for (ushort i = 0; i < _numVertices; i++)
+                for (ushort i = 0; i < vertexCount; i++)
                 {
                     spanRawUVs[i].U = (float)_vertexData_List_BSVDSSE[i].UV.U;
                     spanRawUVs[i].V = (float)_vertexData_List_BSVDSSE[i].UV.V;
@@ -1271,7 +1276,7 @@ namespace NiflySharp.Blocks
             }
             else if (_vertexData_List_BSVD != null)
             {
-                for (ushort i = 0; i < _numVertices; i++)
+                for (ushort i = 0; i < vertexCount; i++)
                 {
                     spanRawUVs[i].U = (float)_vertexData_List_BSVD[i].UV.U;
                     spanRawUVs[i].V = (float)_vertexData_List_BSVD[i].UV.V;
@@ -1289,13 +1294,14 @@ namespace NiflySharp.Blocks
                 return rawVertexColors;
             }
 
-            rawVertexColors = rawVertexColors.Resize(_numVertices);
+            ushort vertexCount = VertexCount;
+            rawVertexColors = rawVertexColors.Resize(vertexCount);
 
             var spanRawColors = CollectionsMarshal.AsSpan(rawVertexColors);
 
             if (_vertexData_List_BSVDSSE != null)
             {
-                for (ushort i = 0; i < _numVertices; i++)
+                for (ushort i = 0; i < vertexCount; i++)
                 {
                     spanRawColors[i].R = _vertexData_List_BSVDSSE[i].VertexColors.R / 255.0f;
                     spanRawColors[i].G = _vertexData_List_BSVDSSE[i].VertexColors.G / 255.0f;
@@ -1305,7 +1311,7 @@ namespace NiflySharp.Blocks
             }
             else if (_vertexData_List_BSVD != null)
             {
-                for (ushort i = 0; i < _numVertices; i++)
+                for (ushort i = 0; i < vertexCount; i++)
                 {
                     spanRawColors[i].R = _vertexData_List_BSVD[i].VertexColors.R / 255.0f;
                     spanRawColors[i].G = _vertexData_List_BSVD[i].VertexColors.G / 255.0f;
@@ -1325,18 +1331,19 @@ namespace NiflySharp.Blocks
                 return rawEyeData;
             }
 
-            rawEyeData = rawEyeData.Resize(_numVertices);
+            ushort vertexCount = VertexCount;
+            rawEyeData = rawEyeData.Resize(vertexCount);
 
             var spanRawEyeData = CollectionsMarshal.AsSpan(rawEyeData);
 
             if (_vertexData_List_BSVDSSE != null)
             {
-                for (ushort i = 0; i < _numVertices; i++)
+                for (ushort i = 0; i < vertexCount; i++)
                     spanRawEyeData[i] = _vertexData_List_BSVDSSE[i].EyeData;
             }
             else if (_vertexData_List_BSVD != null)
             {
-                for (ushort i = 0; i < _numVertices; i++)
+                for (ushort i = 0; i < vertexCount; i++)
                     spanRawEyeData[i] = _vertexData_List_BSVD[i].EyeData;
             }
 
