@@ -2078,7 +2078,7 @@ namespace NiflySharp
                                                 {
                                                     vertexDataSpan[vindex].BoneWeights = new Half[part.NumWeightsPerVertex];
 
-                                                    var weights = vertexWeights[vindex];
+                                                    var weights = vertexWeights[i];
                                                     for (int n = 0; n < part.NumWeightsPerVertex; n++)
                                                     {
                                                         vertexDataSpan[vindex].BoneWeights[n] = (Half)weights[n];
@@ -2089,10 +2089,10 @@ namespace NiflySharp
                                                 {
                                                     vertexDataSpan[vindex].BoneIndices = new byte[part.NumWeightsPerVertex];
 
-                                                    var bindices = boneIndices[vindex];
+                                                    var bindices = boneIndices[i];
                                                     for (int n = 0; n < part.NumWeightsPerVertex; n++)
                                                     {
-                                                        vertexDataSpan[vindex].BoneIndices[n] = bindices[n];
+                                                        vertexDataSpan[vindex].BoneIndices[n] = (byte)part.Bones[bindices[n]];
                                                     }
                                                 }
                                             }
