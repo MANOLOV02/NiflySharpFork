@@ -33,8 +33,8 @@ namespace NiflySharp.Helpers
             if (visited.TryGetValue(original, out object visitedValue))
                 return visitedValue;
 
-            // Simple types or structs (value types except Nullable)
-            if (type.IsPrimitive || type.IsEnum || type == typeof(string) || type.IsValueType && Nullable.GetUnderlyingType(type) == null)
+            // Simple types that are immutable and have no reference fields: primitives, strings, and enums
+            if (type.IsPrimitive || type.IsEnum || type == typeof(string))
                 return original;
 
             // ICloneable

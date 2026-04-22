@@ -586,8 +586,16 @@ namespace NiflySharp.Test
             var nif = new NifFile();
             Assert.Equal(0, nif.Load($"{AssetsDirectory}/V20.2.0.7/12/100/Skinned.nif"));
 
-            var shape = nif.FindBlockByName<INiShape>("cylinder_1");
-            nif.CloneShape(shape, "cylinder_cloned");
+            var srcShape = nif.FindBlockByName<INiShape>("cylinder_1");
+            var clonedShape = nif.CloneShape(srcShape, "cylinder_cloned");
+
+            var srcSkinInst = nif.GetBlock<NiSkinInstance>(srcShape.SkinInstanceRef);
+            var srcSkinData = nif.GetBlock(srcSkinInst.Data);
+            var clonedSkinInst = nif.GetBlock<NiSkinInstance>(clonedShape.SkinInstanceRef);
+            var clonedSkinData = nif.GetBlock(clonedSkinInst.Data);
+
+            // Make sure the clone is deep and not just a reference copy.
+            Assert.NotSame(srcSkinData.BoneList[0].VertexWeights, clonedSkinData.BoneList[0].VertexWeights);
 
             Assert.Equal(0, nif.Save($"{OutputDirectory}/{TestName}.nif"));
 
