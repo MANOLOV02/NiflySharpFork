@@ -2440,8 +2440,13 @@ namespace NiflySharp
                 // Get associated bones for the current tri
                 var triBones = new HashSet<int>();
                 for (ushort i = 0; i < 3; i++)
-                    foreach (var tb in vertBoneWeights[tri[i]])
-                        triBones.Add(tb.Index);
+                {
+                    if (vertBoneWeights.TryGetValue(tri[i], out var boneVertData))
+                    {
+                        foreach (var bvd in boneVertData)
+                            triBones.Add(bvd.Index);
+                    }
+                }
 
                 // How many new bones are in the tri's bone list?
                 ushort newBoneCount = 0;
@@ -2518,33 +2523,36 @@ namespace NiflySharp
 
 		        foreach (var v in part.VertexMap)
                 {
-			        var b = new byte[4];
-                    var vw = new float[4];
-
-			        float tot = 0.0f;
-			        for (int bi = 0; bi < vertBoneWeights[v].Count; bi++)
+                    if (vertBoneWeights.TryGetValue(v, out var vertBoneWeightsList))
                     {
-				        if (bi == 4)
-					        break;
+                        var b = new byte[4];
+                        var vw = new float[4];
 
-                        if (boneLookup.TryGetValue(vertBoneWeights[v][bi].Index, out byte lookupValue))
-                            b[bi] = lookupValue;
-                        else
-                            b[bi] = 0;
+                        float tot = 0.0f;
+                        for (int bi = 0; bi < vertBoneWeightsList.Count; bi++)
+                        {
+                            if (bi == 4)
+                                break;
 
-				        vw[bi] = vertBoneWeights[v][bi].Weight;
-				        tot += vw[bi];
-			        }
+                            if (boneLookup.TryGetValue(vertBoneWeightsList[bi].Index, out byte lookupValue))
+                                b[bi] = lookupValue;
+                            else
+                                b[bi] = 0;
 
-			        if (tot != 0.0f)
-				        for (int bi = 0; bi < 4; bi++)
-					        vw[bi] /= tot;
+                            vw[bi] = vertBoneWeightsList[bi].Weight;
+                            tot += vw[bi];
+                        }
 
-                    part.BoneIndices ??= [];
-                    part.BoneIndices.AddRange(b);
+                        if (tot != 0.0f)
+                            for (int bi = 0; bi < 4; bi++)
+                                vw[bi] /= tot;
 
-                    part.VertexWeights ??= [];
-                    part.VertexWeights.AddRange(vw);
+                        part.BoneIndices ??= [];
+                        part.BoneIndices.AddRange(b);
+
+                        part.VertexWeights ??= [];
+                        part.VertexWeights.AddRange(vw);
+                    }
 		        }
 	        }
 
@@ -2599,7 +2607,7 @@ namespace NiflySharp
 
         /// <summary>
         /// Retrieves tangent and bitangent data from a NiBinaryExtraData block linked to shape <paramref name="shape"/>.
-        /// Extra data needs to be named "Tangent space (binormal &amp; tangent vectors)".
+        /// Extra data needs to be named "Tangent space (binormal & tangent vectors)".
         /// </summary>
         /// <param name="shape">Shape</param>
         /// <param name="tangents">Retrieved tangents</param>
@@ -2652,7 +2660,7 @@ namespace NiflySharp
 
         /// <summary>
         /// Copy tangent and bitangent data into a NiBinaryExtraData block linked to shape <paramref name="shape"/>.
-        /// Extra data will be named "Tangent space (binormal &amp; tangent vectors)".
+        /// Extra data will be named "Tangent space (binormal & tangent vectors)".
         /// </summary>
         /// <param name="shape">Shape</param>
         /// <param name="tangents">Tangents</param>
@@ -2717,7 +2725,7 @@ namespace NiflySharp
 
         /// <summary>
         /// Deletes NiBinaryExtraData block containing tangent and bitangent data linked to shape <paramref name="shape"/>.
-        /// Extra data needs to be named "Tangent space (binormal &amp; tangent vectors)".
+        /// Extra data needs to be named "Tangent space (binormal & tangent vectors)".
         /// </summary>
         /// <param name="shape">Shape</param>
         public void DeleteBinaryTangentData(INiShape shape)
