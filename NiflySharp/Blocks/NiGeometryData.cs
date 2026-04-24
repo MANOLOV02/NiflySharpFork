@@ -9,7 +9,9 @@ namespace NiflySharp.Blocks
 {
     public partial class AdditionalGeomData : NiObject
     {
-
+        public AdditionalGeomData() { }
+        protected AdditionalGeomData(AdditionalGeomData other) : base(other) { }
+        public override object Clone() => new AdditionalGeomData(this);
     }
 
     public partial class NiGeometryData

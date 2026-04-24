@@ -2074,25 +2074,29 @@ namespace NiflySharp
 
                                             if (bsOptShape.VertexCount > vindex)
                                             {
+                                                int weightCount = Math.Min(BoneWeights4.Length, (int)part.NumWeightsPerVertex);
+
                                                 if (part.HasVertexWeights ?? false && vertexWeights != null)
                                                 {
-                                                    vertexDataSpan[vindex].BoneWeights = new Half[part.NumWeightsPerVertex];
+                                                    ref var vertex = ref vertexDataSpan[vindex];
+                                                    vertex.BoneWeights = default;
 
                                                     var weights = vertexWeights[i];
-                                                    for (int n = 0; n < part.NumWeightsPerVertex; n++)
+                                                    for (int n = 0; n < weightCount; n++)
                                                     {
-                                                        vertexDataSpan[vindex].BoneWeights[n] = (Half)weights[n];
+                                                        vertex.BoneWeights[n] = (Half)weights[n];
                                                     }
                                                 }
 
                                                 if (part.HasBoneIndices ?? false && boneIndices != null)
                                                 {
-                                                    vertexDataSpan[vindex].BoneIndices = new byte[part.NumWeightsPerVertex];
+                                                    ref var vertex = ref vertexDataSpan[vindex];
+                                                    vertex.BoneIndices = default;
 
                                                     var bindices = boneIndices[i];
-                                                    for (int n = 0; n < part.NumWeightsPerVertex; n++)
+                                                    for (int n = 0; n < weightCount; n++)
                                                     {
-                                                        vertexDataSpan[vindex].BoneIndices[n] = (byte)part.Bones[bindices[n]];
+                                                        vertex.BoneIndices[n] = (byte)part.Bones[bindices[n]];
                                                     }
                                                 }
                                             }

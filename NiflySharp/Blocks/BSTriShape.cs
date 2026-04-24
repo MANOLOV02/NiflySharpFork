@@ -436,8 +436,6 @@ namespace NiflySharp.Blocks
                     vertex.VertexColors.G = 255;
                     vertex.VertexColors.B = 255;
                     vertex.VertexColors.A = 255;
-                    vertex.BoneWeights ??= new Half[4];
-                    vertex.BoneIndices ??= new byte[4];
 
                     if (uvSets != null && uvSets.Count == _numVertices)
                     {
@@ -479,8 +477,6 @@ namespace NiflySharp.Blocks
                     vertex.VertexColors.G = 255;
                     vertex.VertexColors.B = 255;
                     vertex.VertexColors.A = 255;
-                    vertex.BoneWeights ??= new Half[4];
-                    vertex.BoneIndices ??= new byte[4];
 
                     if (uvSets != null && uvSets.Count == _numVertices)
                     {

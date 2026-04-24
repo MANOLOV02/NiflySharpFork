@@ -24,6 +24,16 @@ namespace NiflySharp.Blocks
             blockSize = size;
         }
 
+        protected NiUnknown(NiUnknown other) : base(other)
+        {
+            data = (byte[])other.data?.Clone();
+        }
+
+        public override object Clone()
+        {
+            return new NiUnknown(this);
+        }
+
         public override void Sync(NiStreamReversible stream)
         {
             if (data == null || data.Length == 0)

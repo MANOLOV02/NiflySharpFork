@@ -102,6 +102,46 @@ namespace NiflySharp
 
         public NiHeader() { }
 
+        /// <summary>
+        /// Copy constructor used by <see cref="Clone"/> to create a deep copy of the header.
+        /// Note: block-related collections are intentionally reset so that the cloned header
+        /// can be repopulated while cloning a <see cref="NifFile"/>.
+        /// </summary>
+        protected NiHeader(NiHeader other) : base(other)
+        {
+            Endian = other.Endian;
+            Creator = (NiString)other.Creator?.Clone();
+            ExportInfo1 = (NiString)other.ExportInfo1?.Clone();
+            ExportInfo2 = (NiString)other.ExportInfo2?.Clone();
+            ExportInfo3 = (NiString)other.ExportInfo3?.Clone();
+            Copyright1 = other.Copyright1;
+            Copyright2 = other.Copyright2;
+            Copyright3 = other.Copyright3;
+            unkInt1 = other.unkInt1;
+            embedData = other.embedData == null ? null : new List<byte>(other.embedData);
+            Version = other.Version == null ? null : new NiVersion(other.Version.FileVersion, other.Version.UserVersion, other.Version.StreamVersion)
+            {
+                NDSVersion = other.Version.NDSVersion
+            };
+            Valid = other.Valid;
+
+            // Block-related fields start empty; they are filled in as blocks are cloned.
+            blockTypes = [];
+            blockTypeIndices = [];
+            blockSizes = [];
+            strings = [];
+            groupSizes = [];
+
+            BlockCount = 0;
+            blockSize = 0;
+            maxStringLen = 0;
+        }
+
+        public override object Clone()
+        {
+            return new NiHeader(this);
+        }
+
         public NiHeader(NiVersion version)
         {
             Version = version;
@@ -730,35 +770,5 @@ namespace NiflySharp
 
         [GeneratedRegex("25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]")]
         private static partial Regex VersionNumberRegex();
-
-        public new object Clone()
-        {
-            var clonedVersion = new NiVersion(Version.FileVersion, Version.UserVersion, Version.StreamVersion)
-            {
-                NDSVersion = Version.NDSVersion
-            };
-
-            var clonedHeader = MemberwiseClone() as NiHeader;
-            clonedHeader.Version = clonedVersion;
-
-            clonedHeader.Creator = Creator?.Clone() as NiString;
-            clonedHeader.ExportInfo1 = ExportInfo1?.Clone() as NiString;
-            clonedHeader.ExportInfo2 = ExportInfo2?.Clone() as NiString;
-            clonedHeader.ExportInfo3 = ExportInfo3?.Clone() as NiString;
-
-            if (clonedHeader.embedData != null)
-                clonedHeader.embedData = [.. clonedHeader.embedData];
-
-            clonedHeader.blockTypes = [];
-            clonedHeader.blockTypeIndices = [];
-            clonedHeader.blockSizes = [];
-            clonedHeader.strings = [];
-            clonedHeader.groupSizes = [];
-
-            clonedHeader.BlockCount = 0;
-            clonedHeader.blockSize = 0;
-            clonedHeader.maxStringLen = 0;
-            return clonedHeader;
-        }
     }
 }

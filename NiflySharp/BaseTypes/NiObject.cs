@@ -1,5 +1,4 @@
-﻿using NiflySharp.Helpers;
-using NiflySharp.Stream;
+﻿using NiflySharp.Stream;
 using System.Collections.Generic;
 
 namespace NiflySharp
@@ -8,6 +7,19 @@ namespace NiflySharp
     {
         protected int blockSize = 0;
         protected uint groupId = 0;
+
+        protected NiObject() { }
+
+        /// <summary>
+        /// Copy constructor used by generated and hand-written deep-clone code.
+        /// Copies state defined on <see cref="NiObject"/> itself; derived
+        /// types are responsible for copying their own fields.
+        /// </summary>
+        protected NiObject(NiObject other)
+        {
+            blockSize = other.blockSize;
+            groupId = other.groupId;
+        }
 
         public virtual IEnumerable<INiRef> References
         {
@@ -50,11 +62,6 @@ namespace NiflySharp
                 stream.Sync(ref groupId);
         }
 
-        public object Clone()
-        {
-            // FIXME: Use deep copy function with reflection for now.
-            // Means not having to generate a more specific clone function into each type.
-            return DeepCopyHelper.DeepCopy(this);
-        }
+        public abstract object Clone();
     }
 }

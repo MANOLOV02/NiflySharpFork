@@ -76,5 +76,15 @@ namespace NiflySharp
         public override string ToString() {
             return _str;
         }
+
+        /// <summary>
+        /// Creates a shallow copy of this string reference.
+        /// The string content and index are value types (string is immutable),
+        /// so a member-wise copy is sufficient for a deep clone.
+        /// </summary>
+        public NiStringRef Clone()
+        {
+            return new NiStringRef(_str) { Index = _index };
+        }
     }
 }

@@ -21,5 +21,16 @@ namespace NiflySharp
                 return _refs;
             }
         }
+
+        public override NiBlockPtrArray<T> Clone()
+        {
+            var clone = new NiBlockPtrArray<T>();
+            clone.Resize(Count);
+
+            for (int i = 0; i < clone.Count; i++)
+                clone.SetBlockRef(i, GetBlockRef(i));
+
+            return clone;
+        }
     }
 }

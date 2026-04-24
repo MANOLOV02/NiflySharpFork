@@ -35,9 +35,9 @@ namespace NiflySharp.Structs
 
         public ByteColor4 VertexColors;
 
-        public Half[] BoneWeights;
+        public BoneWeights4 BoneWeights;
 
-        public byte[] BoneIndices;
+        public BoneIndices4 BoneIndices;
 
         public float EyeData;
 
@@ -99,10 +99,14 @@ namespace NiflySharp.Structs
 
             if ((Convert.ToInt32(stream.Argument) & 0x40) != 0)
             {
-                stream.InitArraySize(ref BoneWeights, 4);
-                stream.SyncArrayContent(BoneWeights);
-                stream.InitArraySize(ref BoneIndices, 4);
-                stream.SyncArrayContent(BoneIndices);
+                stream.Sync(ref BoneWeights[0]);
+                stream.Sync(ref BoneWeights[1]);
+                stream.Sync(ref BoneWeights[2]);
+                stream.Sync(ref BoneWeights[3]);
+                stream.Sync(ref BoneIndices[0]);
+                stream.Sync(ref BoneIndices[1]);
+                stream.Sync(ref BoneIndices[2]);
+                stream.Sync(ref BoneIndices[3]);
             }
 
             if ((Convert.ToInt32(stream.Argument) & 0x100) != 0)

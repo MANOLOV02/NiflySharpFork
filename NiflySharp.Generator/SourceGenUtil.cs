@@ -29,6 +29,23 @@ namespace NiflySharp.Generator
         };
 
         /// <summary>
+        /// Classes that already provide a hand-written parameterless constructor (often with
+        /// initialisation logic) in a partial file. The generator must not emit a default
+        /// constructor for these to avoid CS0111 duplicates.
+        /// </summary>
+        public static readonly string[] ClassesWithHandWrittenDefaultCtor =
+        {
+            "NiAVObject",
+            "NiNode",
+            "NiGeometry",
+            "NiGeometryData",
+            "NiTriShapeData",
+            "BSGeometry",
+            "BSTriShape",
+            "BSDynamicTriShape"
+        };
+
+        /// <summary>
         /// Classes to skip generation of public properties for
         /// </summary>
         public static readonly string[] ClassesWithoutProperties =
@@ -63,6 +80,109 @@ namespace NiflySharp.Generator
             "Matrix22", "Matrix33", "Matrix34", "Matrix44",
             "hkQuaternion", "hkMatrix3"
         };
+
+        /// <summary>
+        /// Hand-written structs that are pure value types (no reference-type members) and can be
+        /// copied wholesale by plain struct assignment. Used as seeds for
+        /// <see cref="ComputePureValueStructs(NifXml)"/>.
+        /// </summary>
+        /// <remarks>
+        /// <c>BSVertexData</c> and <c>BSVertexDataSSE</c> qualify because their
+        /// <c>BoneWeights</c> / <c>BoneIndices</c> members are inline-array value types
+        /// (<c>BoneWeights4</c> / <c>BoneIndices4</c>) — there are no managed references left.
+        /// </remarks>
+        public static readonly string[] PureValueSkippedStructs =
+        {
+            "Vector2",
+            "Vector3",
+            "Vector4",
+            "Quaternion",
+            "BSVertexData",
+            "BSVertexDataSSE"
+        };
+
+        /// <summary>
+        /// Classifies every generated struct as "pure value" (safe to copy by plain assignment,
+        /// requires no deep clone) or not. A struct is pure-value iff every one of its fields is
+        /// itself a value type with no reference-type storage (primitives, enums, other pure-value
+        /// structs, ...). Used by the clone generator to skip unnecessary per-field copies.
+        /// </summary>
+        public static HashSet<string> ComputePureValueStructs(NifXml nifXml)
+        {
+            var pure = new HashSet<string>(PureValueSkippedStructs);
+
+            bool changed = true;
+            while (changed)
+            {
+                changed = false;
+
+                foreach (var s in nifXml.Structs)
+                {
+                    if (pure.Contains(s.Name))
+                        continue;
+                    if (SkippedTypes.Contains(s.Name))
+                        continue; // BSVertexData / BSVertexDataSSE etc. are not pure.
+                    if (s.Generic)
+                        continue; // 'T' field has unknown type; keep conservative.
+
+                    if (IsStructPureValue(nifXml, s, pure))
+                    {
+                        pure.Add(s.Name);
+                        changed = true;
+                    }
+                }
+            }
+
+            return pure;
+        }
+
+        private static bool IsStructPureValue(NifXml nifXml, NifXmlStruct s, HashSet<string> pureSoFar)
+        {
+            foreach (var field in s.Fields)
+            {
+                string fieldTypeName = GetFieldTypeName(s, field, out bool isArray, out bool isRef, out bool isPtr, out bool isStringRef);
+
+                if (isArray || isRef || isPtr || isStringRef)
+                    return false;
+
+                // Bitfields are emitted as classes.
+                if (nifXml.IsBitfieldType(field))
+                    return false;
+
+                // Enums are value types.
+                if (nifXml.IsEnumType(field))
+                    continue;
+
+                // Nested generated structs must themselves be pure-value.
+                if (nifXml.IsStructType(field))
+                {
+                    if (!pureSoFar.Contains(field.Type))
+                        return false;
+                    continue;
+                }
+
+                // Reference-typed base mappings: string wrappers and block ref/ptr helper types.
+                if (fieldTypeName == "NiStringRef" || fieldTypeName == "NiString" ||
+                    fieldTypeName == "NiString1" || fieldTypeName == "NiString2" || fieldTypeName == "NiString4")
+                    return false;
+
+                if (fieldTypeName.StartsWith("NiBlockRef", StringComparison.Ordinal) ||
+                    fieldTypeName.StartsWith("NiBlockPtr", StringComparison.Ordinal))
+                    return false;
+
+                if (fieldTypeName.StartsWith("List<", StringComparison.Ordinal) ||
+                    fieldTypeName.EndsWith("[]", StringComparison.Ordinal))
+                    return false;
+
+                // Generic parameters: unknown, treat conservatively.
+                if (fieldTypeName == "T" || fieldTypeName.Contains("<T>"))
+                    return false;
+
+                // Anything left is a base value type (primitive, System.Half, nullable bool?, etc.).
+            }
+
+            return true;
+        }
 
         /// <summary>
         /// Fields to only calculate ("calc") if value > 0
@@ -637,6 +757,146 @@ namespace NiflySharp.Generator
             }
 
             return conditions + "\r\n";
+        }
+
+        /// <summary>
+        /// Builds an expression that deep-clones the value of a field from a source instance
+        /// into a newly constructed instance of the same object/struct.
+        /// </summary>
+        /// <param name="nifXml">XML instance</param>
+        /// <param name="nifObject">Owning object/struct of the field</param>
+        /// <param name="field">The field being cloned</param>
+        /// <param name="fieldName">Emitted name of the field (e.g. <c>_skinTransform</c> for classes, <c>SkinTransform</c> for structs)</param>
+        /// <param name="fieldTypeName">Full C# type name as produced by <see cref="GetFieldTypeName"/></param>
+        /// <param name="isArray">Field is an array or list</param>
+        /// <param name="isRef">Field is a block reference (or array thereof)</param>
+        /// <param name="isPtr">Field is a block pointer (or array thereof)</param>
+        /// <param name="isStringRef">Field is a string reference (or array thereof)</param>
+        /// <param name="otherPrefix">Prefix for the source instance expression (e.g. <c>other.</c> or <c>this.</c>)</param>
+        /// <returns>C# expression producing the deep-cloned field value</returns>
+        public static string BuildFieldCloneExpression(
+            NifXml nifXml, INifXmlObject nifObject, NifXmlField field,
+            string fieldName, string fieldTypeName,
+            bool isArray, bool isRef, bool isPtr, bool isStringRef,
+            string otherPrefix,
+            HashSet<string> pureValueStructs = null)
+        {
+            string otherExpr = $"{otherPrefix}{fieldName}";
+
+            // Block refs/ptrs (single or array); all expose a covariant Clone() returning the same type.
+            if (isRef || isPtr)
+                return $"{otherExpr}?.Clone()";
+
+            // String references
+            if (isStringRef)
+            {
+                if (!isArray)
+                    return $"{otherExpr}?.Clone()";
+                if (fieldTypeName.EndsWith("[]"))
+                    return $"{otherExpr} == null ? null : System.Array.ConvertAll({otherExpr}, e => e?.Clone())";
+                // List<NiStringRef>
+                return $"{otherExpr}?.ConvertAll(e => e?.Clone())";
+            }
+
+            // Enum (value type)
+            if (nifXml.IsEnumType(field))
+            {
+                if (!isArray)
+                    return otherExpr;
+                if (fieldTypeName.EndsWith("[]"))
+                    return $"({fieldTypeName}){otherExpr}?.Clone()";
+                return $"{otherExpr} == null ? null : new {fieldTypeName}({otherExpr})";
+            }
+
+            // Bitfield (generated partial class with a Value storage property)
+            if (nifXml.IsBitfieldType(field))
+            {
+                if (!isArray)
+                    return $"{otherExpr} == null ? null : new {fieldTypeName}({otherExpr}.Value)";
+
+                string elem = StripCollectionSuffix(fieldTypeName);
+                if (fieldTypeName.EndsWith("[]"))
+                    return $"{otherExpr} == null ? null : System.Array.ConvertAll({otherExpr}, e => e == null ? null : new {elem}(e.Value))";
+                return $"{otherExpr}?.ConvertAll(e => e == null ? null : new {elem}(e.Value))";
+            }
+
+            // Sized string wrappers (NiString1/2/4)
+            if (fieldTypeName == "NiString1" || fieldTypeName == "NiString2" || fieldTypeName == "NiString4")
+                return $"({fieldTypeName}){otherExpr}?.Clone()";
+
+            if (fieldTypeName.EndsWith("[]") &&
+                (fieldTypeName == "NiString1[]" || fieldTypeName == "NiString2[]" || fieldTypeName == "NiString4[]"))
+            {
+                string elem = fieldTypeName.Substring(0, fieldTypeName.Length - 2);
+                return $"{otherExpr} == null ? null : System.Array.ConvertAll({otherExpr}, e => ({elem})e?.Clone())";
+            }
+
+            if (fieldTypeName == "List<NiString1>" || fieldTypeName == "List<NiString2>" || fieldTypeName == "List<NiString4>")
+            {
+                string elem = fieldTypeName.Substring(5, fieldTypeName.Length - 6);
+                return $"{otherExpr}?.ConvertAll(e => ({elem})e?.Clone())";
+            }
+
+            // Generated structs (includes skipped structs seeded as pure-value in
+            // <see cref="PureValueSkippedStructs"/>, such as BSVertexData / BSVertexDataSSE).
+            if (nifXml.IsStructType(field))
+            {
+                // Skipped value-type compounds like Vector2/3/4, Quaternion and the inline-array
+                // based BSVertexData(SSE) have no DeepClone() and are safely copied via plain
+                // value assignment.
+                bool isValueTypeBase = SkippedTypes.Contains(field.Type);
+
+                // Pure-value structs (no reference-type members anywhere) can be copied by
+                // plain struct assignment — no DeepClone() call or per-field work required.
+                bool isPureValue = pureValueStructs != null && pureValueStructs.Contains(field.Type);
+
+                if (isValueTypeBase || isPureValue)
+                {
+                    if (!isArray)
+                        return otherExpr;
+                    if (fieldTypeName.EndsWith("[]"))
+                        return $"({fieldTypeName}){otherExpr}?.Clone()";
+                    return $"{otherExpr} == null ? null : new {fieldTypeName}({otherExpr})";
+                }
+
+                if (!isArray)
+                    return $"{otherExpr}.DeepClone()";
+                if (fieldTypeName.EndsWith("[]"))
+                    return $"{otherExpr} == null ? null : System.Array.ConvertAll({otherExpr}, e => e.DeepClone())";
+                return $"{otherExpr}?.ConvertAll(e => e.DeepClone())";
+            }
+
+            // Generic 'T' in generic generated types (structs like Key<T>, KeyGroup<T>, ...).
+            // No generic constraint is available, so fall back to direct/shallow assignment.
+            // Hand-written OnDeepClone partial methods can override this behaviour.
+            if (nifObject.Generic && (fieldTypeName == "T" || fieldTypeName.Contains("<T>") || fieldTypeName.EndsWith("T[]") || fieldTypeName.EndsWith("T>")))
+            {
+                if (!isArray)
+                    return otherExpr;
+                if (fieldTypeName.EndsWith("[]"))
+                    return $"({fieldTypeName}){otherExpr}?.Clone()";
+                return $"{otherExpr} == null ? null : new {fieldTypeName}({otherExpr})";
+            }
+
+            // Arrays/lists of value/base types (float[], byte[], List<ushort>, List<Vector3>, ...)
+            if (isArray)
+            {
+                if (fieldTypeName.EndsWith("[]"))
+                    return $"({fieldTypeName}){otherExpr}?.Clone()";
+                return $"{otherExpr} == null ? null : new {fieldTypeName}({otherExpr})";
+            }
+
+            // Default: primitive, base-type struct (Vector3, Quaternion), string, nullable bool, ...
+            return otherExpr;
+        }
+
+        private static string StripCollectionSuffix(string typeName)
+        {
+            if (typeName.EndsWith("[]"))
+                return typeName.Substring(0, typeName.Length - 2);
+            if (typeName.StartsWith("List<") && typeName.EndsWith(">"))
+                return typeName.Substring(5, typeName.Length - 6);
+            return typeName;
         }
     }
 }

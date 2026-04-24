@@ -45,9 +45,14 @@ namespace NiflySharp.Generator
                 foreach (var nifBitfield in nifXml.Bitfields)
                     GenerateSource(spc, nifXml, nifBitfield);
 
+                // Pre-compute structs that are safe to copy by plain struct assignment.
+                // This lets the clone generator skip unnecessary per-field copies and
+                // DeepClone() calls for fields whose types contain no reference members.
+                var pureValueStructs = SourceGenUtil.ComputePureValueStructs(nifXml);
+
                 // Generate object/struct sources
                 foreach (var nifObject in nifXml.EnumerateObjectsAndStructs())
-                    GenerateSource(spc, nifXml, nifObject);
+                    GenerateSource(spc, nifXml, nifObject, pureValueStructs);
             });
         }
 
@@ -511,7 +516,7 @@ namespace NiflySharp.Bitfields
         /// <summary>
         /// Generate object/struct sources
         /// </summary>
-        public void GenerateSource(SourceProductionContext context, NifXml nifXml, INifXmlObject nifObject)
+        public void GenerateSource(SourceProductionContext context, NifXml nifXml, INifXmlObject nifObject, HashSet<string> pureValueStructs = null)
         {
             string typeName = SourceGenUtil.NormalizeTypeName(nifObject.Name);
 
@@ -554,6 +559,7 @@ namespace NiflySharp.Bitfields
             string ptrsBody = string.Empty;
             string refArraysBody = string.Empty;
             string stringRefsBody = string.Empty;
+            string cloneFieldsBody = string.Empty;
             string lastSyncFuncCondition = null;
             var dictArrayCountMembers = new Dictionary<string, NifXmlField>();
 
@@ -803,6 +809,20 @@ namespace NiflySharp.Bitfields
                             if (!isArray)
                                 stringRefsBody += $"                if ({fieldName} != null && {fieldName} is NiStringRef) list.Add({fieldName} as NiStringRef);\r\n";
                         }
+                    }
+
+                    // Build clone assignment for this field
+                    {
+                        string otherPrefix = nifObject.IsStruct ? "this." : "other.";
+                        string targetPrefix = nifObject.IsStruct ? "copy." : "this.";
+                        string cloneExpr = SourceGenUtil.BuildFieldCloneExpression(
+                            nifXml, nifObject, field,
+                            fieldName, fieldTypeName,
+                            isArray, isRef, isPtr, isStringRef,
+                            otherPrefix,
+                            pureValueStructs);
+
+                        cloneFieldsBody += $"            {targetPrefix}{fieldName} = {cloneExpr};\r\n";
                     }
 
                     // Remember field as added
@@ -1366,6 +1386,13 @@ namespace NiflySharp.Bitfields
             if (!string.IsNullOrWhiteSpace(syncFuncArrayCounts))
                 syncFuncArrayCounts += "\r\n";
 
+            string typeNameSuffix = string.Empty;
+            if (nifObject.Generic)
+            {
+                // Make type generic
+                typeNameSuffix = "<T>";
+            }
+
             string typePrefix;
             string typeConstructor;
             if (nifObject.IsStruct)
@@ -1378,7 +1405,66 @@ namespace NiflySharp.Bitfields
             {
                 // Type definition for classes
                 typePrefix = "public partial class";
-                typeConstructor = string.Empty;
+                typeConstructor = SourceGenUtil.ClassesWithHandWrittenDefaultCtor.Contains(typeName)
+                    ? string.Empty
+                    : $"        public {typeName}() {{ }}\r\n\r\n";
+            }
+
+            // Build deep-clone section
+            string cloneSection;
+            string fullTypeName = $"{typeName}{typeNameSuffix}";
+            if (nifObject.IsStruct)
+            {
+                // If the struct has no reference-type members at all, the `var copy = this`
+                // assignment already produces a full deep copy — skip per-field work entirely.
+                bool isPureValueStruct = pureValueStructs != null && pureValueStructs.Contains(typeName);
+                string cloneBody = isPureValueStruct ? string.Empty : cloneFieldsBody;
+
+                cloneSection =
+                    $"        /// <summary>\r\n" +
+                    $"        /// Hand-written partials can implement this to extend <see cref=\"DeepClone\"/>.\r\n" +
+                    $"        /// </summary>\r\n" +
+                    $"        partial void OnDeepClone(ref {fullTypeName} copy);\r\n" +
+                    $"\r\n" +
+                    $"        /// <summary>\r\n" +
+                    $"        /// Returns a deep copy of this struct.\r\n" +
+                    $"        /// </summary>\r\n" +
+                    $"        public {fullTypeName} DeepClone()\r\n" +
+                    $"        {{\r\n" +
+                    $"            var copy = this;\r\n" +
+                    $"{cloneBody}" +
+                    $"            OnDeepClone(ref copy);\r\n" +
+                    $"            return copy;\r\n" +
+                    $"        }}\r\n";
+            }
+            else
+            {
+                bool hasBase = !string.IsNullOrWhiteSpace(nifObject.Inherit);
+                string baseCall = hasBase ? " : base(other)" : " : base(other)"; // NiObject also has protected copy ctor
+
+                // Emit Clone() override for every class. The generator does not currently mark
+                // nif-xml abstract objects as C# abstract classes, so they all need a concrete
+                // override of NiObject.Clone().
+                string cloneOverride =
+                    $"\r\n" +
+                    $"        public override object Clone()\r\n" +
+                    $"        {{\r\n" +
+                    $"            return new {fullTypeName}(this);\r\n" +
+                    $"        }}\r\n";
+
+                cloneSection =
+                    $"        /// <summary>\r\n" +
+                    $"        /// Hand-written partials can implement this to copy non-generated members\r\n" +
+                    $"        /// as part of the copy constructor / <see cref=\"Clone\"/>.\r\n" +
+                    $"        /// </summary>\r\n" +
+                    $"        partial void CopyFromExtra({fullTypeName} other);\r\n" +
+                    $"\r\n" +
+                    $"        protected {typeName}({fullTypeName} other){baseCall}\r\n" +
+                    $"        {{\r\n" +
+                    $"{cloneFieldsBody}" +
+                    $"            CopyFromExtra(other);\r\n" +
+                    $"        }}\r\n" +
+                    cloneOverride;
             }
 
             string syncFunc = string.Empty;
@@ -1407,13 +1493,6 @@ namespace NiflySharp.Bitfields
                     $"        }}";
             }
 
-            string typeNameSuffix = string.Empty;
-            if (nifObject.Generic)
-            {
-                // Make type generic
-                typeNameSuffix = "<T>";
-            }
-
             // Build up the class/struct source code
             string source =
 $@"// <auto-generated/>
@@ -1430,7 +1509,8 @@ namespace {(nifObject.IsStruct ? "NiflySharp.Structs" : "NiflySharp.Blocks")}
 {{{classComment}
     {typePrefix} {typeName}{typeNameSuffix}{inherit}
     {{{fieldsSection}
-{typeConstructor}{syncFunc}
+{typeConstructor}{cloneSection}
+{syncFunc}
     }}
 }}
 ";
