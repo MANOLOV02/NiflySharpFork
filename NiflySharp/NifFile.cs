@@ -2178,10 +2178,8 @@ namespace NiflySharp
                     }
 
                     bool withoutNormals = false;
+
                     // Capture report booleans locally and fire them against `bsOptShape`
-                    // AFTER the ReplaceBlock call below. Before this fix, the reports
-                    // referenced `shape` (the orphaned block) — matches what the toSSE
-                    // branch above does and the C++ pattern in NifFile.cpp:1773,1960.
                     bool didRemoveNormals = false;
                     bool didRemoveParallax = false;
 
@@ -2193,8 +2191,7 @@ namespace NiflySharp
                             // No normals and tangents with model space maps
                             if (bslsp.ModelSpace)
                             {
-                                // Report "normals removed" when there were normals to
-                                // remove. Matches C++ NifFile.cpp:1823 `if (!normals->empty())`.
+                                // Report "normals removed" when there were normals to remove.
                                 if (normals.Count > 0)
                                     didRemoveNormals = true;
 
@@ -2351,11 +2348,7 @@ namespace NiflySharp
                     ReplaceBlock(shape, bsOptShape);
                     UpdateSkinPartitions(bsOptShape);
 
-                    // Fire reports against the live block (bsOptShape) — `shape` has
-                    // been replaced and is now orphaned. Matches the toSSE branch above
-                    // and the C++ pattern where reports use `shapeName` (a string that
-                    // outlives the replace) at NifFile.cpp:1567-1762 before the
-                    // ReplaceBlock at NifFile.cpp:1773.
+                    // Fire reports against the live block (bsOptShape) — `shape` has been replaced and is now orphaned.
                     if (didRemoveNormals) result.ShapesNormalsRemoved.Add(bsOptShape);
                     if (didRemoveParallax) result.ShapesParallaxRemoved.Add(bsOptShape);
                     if (didRemoveVertexColors) result.ShapesVertexColorsRemoved.Add(bsOptShape);
