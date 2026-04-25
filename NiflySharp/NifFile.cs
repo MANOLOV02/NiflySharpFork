@@ -1862,7 +1862,6 @@ namespace NiflySharp
                     if (withoutVertexColors && geomData.HasVertexColors)
                     {
                         // Remove vertex colors only if ALL elements are white/neutral.
-                        // Matches C++ nifly NifFile.cpp:1544-1549 (remove when all == 0xFFFFFFFF).
                         var white = new Color4(1.0f, 1.0f, 1.0f, 1.0f);
                         withoutVertexColors = geomData.VertexColors.All(c => c == white);
                     }
@@ -2174,7 +2173,6 @@ namespace NiflySharp
                     if (withoutVertexColors && bsTriShape.HasVertexColors)
                     {
                         // Remove vertex colors only if ALL elements are white/neutral.
-                        // Matches C++ nifly NifFile.cpp:1544-1549 (remove when all == 0xFFFFFFFF).
                         var white = new Color4(1.0f, 1.0f, 1.0f, 1.0f);
                         withoutVertexColors = vertexColors.All(c => c == white);
                     }
