@@ -2405,13 +2405,10 @@ namespace NiflySharp
                 boneIndex++;
             }
 
-            // Sort weights and corresponding bones
+            // Sort weights and corresponding bones.
+            // Descending (largest weights first):
+            // Weakest influences on vertices with more than 4 bones are truncated.
             foreach (var bw in vertBoneWeights)
-                // Sort descending: largest weights first. The subsequent Resize(4) below
-                // truncates the tail, so ascending-order would discard the STRONGEST
-                // influences on vertices with more than 4 bones — catastrophic for
-                // skinning of dense rigs. Matches C++ nifly NifFile.hpp:50
-                // `BoneWeightsSort` operator returning `rhs.weight < lhs.weight`.
                 bw.Value.Sort((lhs, rhs) => rhs.Weight.CompareTo(lhs.Weight));
 
             // Enforce maximum vertex bone weight count
