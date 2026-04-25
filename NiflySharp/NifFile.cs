@@ -619,6 +619,10 @@ namespace NiflySharp
                 // Clone missing node into the right parent
                 boneID = CloneNamedNode(boneName, srcNif);
                 nodeParent.Children.AddBlockRef(boneID);
+                // Keep the NumChildren mirror in step with the list. The auto-sync in
+                // NiNode.Sync() only runs at save time; any reader that touches
+                // NumChildren between AddBlockRef and the next Sync sees stale data.
+                nodeParent.NumChildren = (uint)nodeParent.Children.Count;
             }
             else
             {
@@ -631,6 +635,7 @@ namespace NiflySharp
                             r.Clear();
 
                     nodeParent.Children.AddBlockRef(boneID);
+                    nodeParent.NumChildren = (uint)nodeParent.Children.Count;
 
                     // Set transform to parent
                     node.TransformToParent = srcNode.TransformToParent;
@@ -715,10 +720,16 @@ namespace NiflySharp
                 // Assign copied geometry to the same parent
                 var parentNode = GetParentNode(srcShape);
                 if (parentNode != null)
+                {
                     parentNode.Children.AddBlockRef(destId);
+                    parentNode.NumChildren = (uint)parentNode.Children.Count;
+                }
             }
             else if (rootNode != null)
+            {
                 rootNode.Children.AddBlockRef(destId);
+                rootNode.NumChildren = (uint)rootNode.Children.Count;
+            }
 
             // Children
             CloneChildren(destShape, srcNif);
@@ -775,6 +786,8 @@ namespace NiflySharp
                             destBoneCont.Bones.AddBlockRef(boneID);
                     }
                 }
+                // Keep NumBones mirror in step (same reasoning as NumChildren above).
+                destBoneCont.NumBones = (uint)destBoneCont.Bones.Count;
             }
 
             return destShape;
