@@ -2419,9 +2419,11 @@ namespace NiflySharp
                 boneIndex++;
             }
 
-            // Sort weights and corresponding bones
+            // Sort weights and corresponding bones.
+            // Descending (largest weights first):
+            // Weakest influences on vertices with more than 4 bones are truncated.
             foreach (var bw in vertBoneWeights)
-                bw.Value.Sort((lhs, rhs) => lhs.Weight.CompareTo(rhs.Weight));
+                bw.Value.Sort((lhs, rhs) => rhs.Weight.CompareTo(lhs.Weight));
 
             // Enforce maximum vertex bone weight count
             const ushort maxBonesPerVertex = 4;
