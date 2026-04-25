@@ -38,7 +38,8 @@ namespace NiflySharp
                 if (size > _refs.Capacity)
                     _refs.Capacity = size;
 
-                for (int i = 0; i < size; i++)
+                // Fill only the new slots from `cur` up to `size`
+                for (int i = cur; i < size; i++)
                     _refs.Add(new NiBlockRef<T>() { List = _refs });
             }
 
@@ -69,6 +70,7 @@ namespace NiflySharp
         public override void AddBlockRef(int id)
         {
             _refs.Add(new NiBlockRef<T>(id) { List = _refs });
+            _listSizeStream = _refs.Count;
         }
 
         public override int GetBlockRef(int id)
@@ -88,7 +90,10 @@ namespace NiflySharp
         public override void RemoveBlockRef(int id)
         {
             if (id != NiRef.NPOS && _refs.Count > id)
+            {
                 _refs.RemoveAt(id);
+                _listSizeStream = _refs.Count;
+            }
         }
 
         public override IEnumerable<int> Indices
