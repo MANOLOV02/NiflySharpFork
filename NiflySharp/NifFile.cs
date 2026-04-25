@@ -1874,9 +1874,9 @@ namespace NiflySharp
 
                     if (withoutVertexColors && geomData.HasVertexColors)
                     {
-                        // Remove vertex colors if all elements are white/neutral
+                        // Remove vertex colors only if ALL elements are white/neutral.
                         var white = new Color4(1.0f, 1.0f, 1.0f, 1.0f);
-                        withoutVertexColors = geomData.VertexColors.Any(c => c != white);
+                        withoutVertexColors = geomData.VertexColors.All(c => c == white);
                     }
 
                     bool isHeadPartEyes = false;
@@ -2185,9 +2185,9 @@ namespace NiflySharp
 
                     if (withoutVertexColors && bsTriShape.HasVertexColors)
                     {
-                        // Remove vertex colors if all elements are white/neutral
+                        // Remove vertex colors only if ALL elements are white/neutral.
                         var white = new Color4(1.0f, 1.0f, 1.0f, 1.0f);
-                        withoutVertexColors = vertexColors.Any(c => c != white);
+                        withoutVertexColors = vertexColors.All(c => c == white);
                     }
 
                     bool withoutNormals = false;
