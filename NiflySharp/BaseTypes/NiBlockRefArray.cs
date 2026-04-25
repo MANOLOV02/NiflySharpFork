@@ -38,7 +38,11 @@ namespace NiflySharp
                 if (size > _refs.Capacity)
                     _refs.Capacity = size;
 
-                for (int i = 0; i < size; i++)
+                // Fill only the new slots from `cur` up to `size` — the previous
+                // `for (i=0; i<size)` appended `size` entries on every grow, producing
+                // a final count of `cur + size` instead of `size`. Matches C++ nifly
+                // BasicTypes.hpp:863 `refs.resize(arraySize)` semantics.
+                for (int i = cur; i < size; i++)
                     _refs.Add(new NiBlockRef<T>() { List = _refs });
             }
 
@@ -68,7 +72,12 @@ namespace NiflySharp
 
         public override void AddBlockRef(int id)
         {
+            // Matches C++ nifly BasicTypes.hpp:869-872: bump arraySize together with the
+            // list Add so callers reading _listSizeStream see a consistent count between
+            // Sync()s. Before, _listSizeStream stayed stale until the next Sync and any
+            // consumer that touched it directly saw the pre-Add count.
             _refs.Add(new NiBlockRef<T>(id) { List = _refs });
+            _listSizeStream = _refs.Count;
         }
 
         public override int GetBlockRef(int id)
@@ -87,8 +96,13 @@ namespace NiflySharp
 
         public override void RemoveBlockRef(int id)
         {
+            // Matches C++ nifly BasicTypes.hpp:886-890: keep arraySize in step with the
+            // list Remove.
             if (id != NiRef.NPOS && _refs.Count > id)
+            {
                 _refs.RemoveAt(id);
+                _listSizeStream = _refs.Count;
+            }
         }
 
         public override IEnumerable<int> Indices
