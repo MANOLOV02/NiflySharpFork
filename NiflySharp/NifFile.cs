@@ -142,17 +142,15 @@ namespace NiflySharp
         /// </returns>
         public int Load(string fileName, NifFileLoadOptions options = null)
         {
-            FileStream file;
             try
             {
-                file = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+                using var file = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+                return Load(file, options);
             }
             catch
             {
                 return 1;
             }
-
-            return Load(file, options);
         }
 
         /// <summary>
