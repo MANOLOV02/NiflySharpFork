@@ -1971,8 +1971,6 @@ namespace NiflySharp
                     bsOptShape.Scale = shape.Scale;
 
                     // Honor the withoutNormals flag — ModelSpace shaders must drop normals.
-                    // Matches C++ nifly NifFile.cpp:1565-1569 nulling `normals` before the
-                    // equivalent Create call at NifFile.cpp:1652.
                     bsOptShape.Create(Header.Version, geomData.Vertices, geomData.Triangles, geomData.UVSets, !withoutNormals ? geomData.Normals : null);
                     bsOptShape.Flags_ui = shape.Flags_ui;
 
