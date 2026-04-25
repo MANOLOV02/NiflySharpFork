@@ -695,8 +695,14 @@ namespace NiflySharp.Blocks
 
             HasUVs = true;
 
-            rawUVs = rawUVs.Resize(_numVertices);
-            var rawUVsSpan = CollectionsMarshal.AsSpan(rawUVs);
+            // Target the UV buffer (rawUvs, lowercase v — List<TexCoord>), not the
+            // tangent buffer (rawUVs, capital V — List<Vector3>). The two names collide
+            // almost character-for-character but hold different data.
+            // C++ nifly equivalents are `rawUvs` / `rawTangents` which have no such
+            // collision; see BSTriShape::UpdateRawUvs (Geometry.cpp:690) vs
+            // BSTriShape::UpdateRawTangents (Geometry.cpp:658).
+            rawUvs = rawUvs.Resize(_numVertices);
+            var rawUvsSpan = CollectionsMarshal.AsSpan(rawUvs);
 
             if (_vertexData_List_BSVDSSE != null)
             {
@@ -704,7 +710,8 @@ namespace NiflySharp.Blocks
 
                 for (int i = 0; i < _numVertices; i++)
                 {
-                    rawUVsSpan[i] = uvs[i];
+                    rawUvsSpan[i].U = uvs[i].X;
+                    rawUvsSpan[i].V = uvs[i].Y;
                     vertexDataSpan[i].UV.U = (Half)uvs[i].X;
                     vertexDataSpan[i].UV.V = (Half)uvs[i].Y;
                 }
@@ -715,7 +722,8 @@ namespace NiflySharp.Blocks
 
                 for (int i = 0; i < _numVertices; i++)
                 {
-                    rawUVsSpan[i] = uvs[i];
+                    rawUvsSpan[i].U = uvs[i].X;
+                    rawUvsSpan[i].V = uvs[i].Y;
                     vertexDataSpan[i].UV.U = (Half)uvs[i].X;
                     vertexDataSpan[i].UV.V = (Half)uvs[i].Y;
                 }
