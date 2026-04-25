@@ -40,9 +40,9 @@ namespace NiflySharp.Blocks
 
         internal List<Vector3> rawVertexPositions;  // temporary copy filled by UpdateRawVertices function
         internal List<Vector3> rawNormals;          // temporary copy filled by UpdateRawNormals function
-        internal List<Vector3> rawUVs;              // temporary copy filled by UpdateRawTangents function
+        internal List<Vector3> rawTangents;         // temporary copy filled by UpdateRawTangents function
         internal List<Vector3> rawBitangents;       // temporary copy filled by UpdateRawBitangents function
-        internal List<TexCoord> rawUvs;             // temporary copy filled by UpdateRawUvs function
+        internal List<TexCoord> rawUVs;             // temporary copy filled by UpdateRawUvs function
         internal List<Color4> rawVertexColors;      // temporary copy filled by UpdateRawColors function
         internal List<float> rawEyeData;            // temporary copy filled by UpdateRawEyeData function
 
@@ -612,8 +612,8 @@ namespace NiflySharp.Blocks
 
             HasTangents = true;
 
-            rawUVs = rawUVs.Resize(_numVertices);
-            var rawTangentsSpan = CollectionsMarshal.AsSpan(rawUVs);
+            rawTangents = rawTangents.Resize(_numVertices);
+            var rawTangentsSpan = CollectionsMarshal.AsSpan(rawTangents);
 
             if (_vertexData_List_BSVDSSE != null)
             {
@@ -695,14 +695,8 @@ namespace NiflySharp.Blocks
 
             HasUVs = true;
 
-            // Target the UV buffer (rawUvs, lowercase v — List<TexCoord>), not the
-            // tangent buffer (rawUVs, capital V — List<Vector3>). The two names collide
-            // almost character-for-character but hold different data.
-            // C++ nifly equivalents are `rawUvs` / `rawTangents` which have no such
-            // collision; see BSTriShape::UpdateRawUvs (Geometry.cpp:690) vs
-            // BSTriShape::UpdateRawTangents (Geometry.cpp:658).
-            rawUvs = rawUvs.Resize(_numVertices);
-            var rawUvsSpan = CollectionsMarshal.AsSpan(rawUvs);
+            rawUVs = rawUVs.Resize(_numVertices);
+            var rawUvsSpan = CollectionsMarshal.AsSpan(rawUVs);
 
             if (_vertexData_List_BSVDSSE != null)
             {
@@ -926,11 +920,11 @@ namespace NiflySharp.Blocks
             }
 
             rawBitangents = rawBitangents.Resize(_numVertices);
-            rawUVs = rawUVs.Resize(_numVertices);
+            rawTangents = rawTangents.Resize(_numVertices);
 
             var rawNormalsSpan = CollectionsMarshal.AsSpan(rawNormals);
             var rawBitangentsSpan = CollectionsMarshal.AsSpan(rawBitangents);
-            var rawTangentsSpan = CollectionsMarshal.AsSpan(rawUVs);
+            var rawTangentsSpan = CollectionsMarshal.AsSpan(rawTangents);
 
             for (ushort i = 0; i < _numVertices; i++)
             {
@@ -1179,14 +1173,14 @@ namespace NiflySharp.Blocks
         {
             if (!HasTangents)
             {
-                rawUVs = rawUVs.Resize(0);
-                return rawUVs;
+                rawTangents = rawTangents.Resize(0);
+                return rawTangents;
             }
 
             ushort vertexCount = VertexCount;
-            rawUVs = rawUVs.Resize(vertexCount);
+            rawTangents = rawTangents.Resize(vertexCount);
 
-            var spanRawTangents = CollectionsMarshal.AsSpan(rawUVs);
+            var spanRawTangents = CollectionsMarshal.AsSpan(rawTangents);
 
             if (_vertexData_List_BSVDSSE != null)
             {
@@ -1207,7 +1201,7 @@ namespace NiflySharp.Blocks
                 }
             }
 
-            return rawUVs;
+            return rawTangents;
         }
 
         internal List<Vector3> UpdateRawBitangents()
@@ -1261,14 +1255,14 @@ namespace NiflySharp.Blocks
         {
             if (!HasUVs)
             {
-                rawUvs = rawUvs.Resize(0);
-                return rawUvs;
+                rawUVs = rawUVs.Resize(0);
+                return rawUVs;
             }
 
             ushort vertexCount = VertexCount;
-            rawUvs = rawUvs.Resize(vertexCount);
+            rawUVs = rawUVs.Resize(vertexCount);
 
-            var spanRawUVs = CollectionsMarshal.AsSpan(rawUvs);
+            var spanRawUVs = CollectionsMarshal.AsSpan(rawUVs);
 
             if (_vertexData_List_BSVDSSE != null)
             {
@@ -1287,7 +1281,7 @@ namespace NiflySharp.Blocks
                 }
             }
 
-            return rawUvs;
+            return rawUVs;
         }
 
         internal List<Color4> UpdateRawVertexColors()
