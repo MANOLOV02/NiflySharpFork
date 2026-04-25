@@ -2609,7 +2609,7 @@ namespace NiflySharp
 
         /// <summary>
         /// Retrieves tangent and bitangent data from a NiBinaryExtraData block linked to shape <paramref name="shape"/>.
-        /// Extra data needs to be named "Tangent space (binormal & tangent vectors)".
+        /// Extra data needs to be named "Tangent space (binormal &amp; tangent vectors)".
         /// </summary>
         /// <param name="shape">Shape</param>
         /// <param name="tangents">Retrieved tangents</param>
@@ -2662,7 +2662,7 @@ namespace NiflySharp
 
         /// <summary>
         /// Copy tangent and bitangent data into a NiBinaryExtraData block linked to shape <paramref name="shape"/>.
-        /// Extra data will be named "Tangent space (binormal & tangent vectors)".
+        /// Extra data will be named "Tangent space (binormal &amp; tangent vectors)".
         /// </summary>
         /// <param name="shape">Shape</param>
         /// <param name="tangents">Tangents</param>
@@ -2727,7 +2727,7 @@ namespace NiflySharp
 
         /// <summary>
         /// Deletes NiBinaryExtraData block containing tangent and bitangent data linked to shape <paramref name="shape"/>.
-        /// Extra data needs to be named "Tangent space (binormal & tangent vectors)".
+        /// Extra data needs to be named "Tangent space (binormal &amp; tangent vectors)".
         /// </summary>
         /// <param name="shape">Shape</param>
         public void DeleteBinaryTangentData(INiShape shape)
