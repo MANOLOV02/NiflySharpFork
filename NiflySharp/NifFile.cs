@@ -2193,6 +2193,10 @@ namespace NiflySharp
 
                     bool withoutNormals = false;
 
+                    // Capture report booleans locally and fire them against `bsOptShape`
+                    bool didRemoveNormals = false;
+                    bool didRemoveParallax = false;
+
                     var shader = GetShader(shape);
                     if (shader != null)
                     {
@@ -2201,8 +2205,9 @@ namespace NiflySharp
                             // No normals and tangents with model space maps
                             if (bslsp.ModelSpace)
                             {
-                                if (normals.Count == 0)
-                                    result.ShapesNormalsRemoved.Add(shape);
+                                // Report "normals removed" when there were normals to remove.
+                                if (normals.Count > 0)
+                                    didRemoveNormals = true;
 
                                 withoutNormals = true;
                             }
@@ -2239,7 +2244,7 @@ namespace NiflySharp
                                     if (textureSet != null && textureSet.Textures.Count >= 4)
                                         textureSet.Textures[3].Content = string.Empty;
 
-                                    result.ShapesParallaxRemoved.Add(shape);
+                                    didRemoveParallax = true;
                                 }
                             }
                         }
@@ -2259,8 +2264,7 @@ namespace NiflySharp
                         }
                     }
 
-                    if (withoutVertexColors && vertexColors.Count > 0)
-                        result.ShapesVertexColorsRemoved.Add(shape);
+                    bool didRemoveVertexColors = (withoutVertexColors && vertexColors.Count > 0);
 
                     NiTriShape bsOptShape = null;
                     var bsOptShapeData = new NiTriShapeData();
@@ -2334,7 +2338,7 @@ namespace NiflySharp
                                 {
                                     bool triangulated = skinPart.ConvertStripsToTriangles();
                                     if (triangulated)
-                                        result.ShapesPartitionsTriangulated.Add(shape);
+                                        result.ShapesPartitionsTriangulated.Add(bsOptShape);
 
                                     var partitionsSpan = CollectionsMarshal.AsSpan(skinPart.Partitions);
 
@@ -2353,11 +2357,16 @@ namespace NiflySharp
                         bsOptShape.HasVertices = false;
 
                     // Check if tangents were added
-                    if (!shape.HasTangents && bsOptShape.HasTangents)
-                        result.ShapesTangentsAdded.Add(shape);
+                    bool didAddTangents = (!shape.HasTangents && bsOptShape.HasTangents);
 
                     ReplaceBlock(shape, bsOptShape);
                     UpdateSkinPartitions(bsOptShape);
+
+                    // Fire reports against the live block (bsOptShape) — `shape` has been replaced and is now orphaned.
+                    if (didRemoveNormals) result.ShapesNormalsRemoved.Add(bsOptShape);
+                    if (didRemoveParallax) result.ShapesParallaxRemoved.Add(bsOptShape);
+                    if (didRemoveVertexColors) result.ShapesVertexColorsRemoved.Add(bsOptShape);
+                    if (didAddTangents) result.ShapesTangentsAdded.Add(bsOptShape);
                 }
 
                 RemoveUnreferencedBlocks();
