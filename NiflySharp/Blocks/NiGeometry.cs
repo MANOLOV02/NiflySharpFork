@@ -62,7 +62,7 @@ namespace NiflySharp.Blocks
             set
             {
                 if (GeometryData != null)
-                    GeometryData.HasUVs = true;
+                    GeometryData.HasUVs = value;
             }
         }
 
@@ -88,7 +88,7 @@ namespace NiflySharp.Blocks
             set
             {
                 if (GeometryData != null)
-                    GeometryData.HasTangents = true;
+                    GeometryData.HasTangents = value;
             }
         }
 
