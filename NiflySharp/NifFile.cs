@@ -142,21 +142,15 @@ namespace NiflySharp
         /// </returns>
         public int Load(string fileName, NifFileLoadOptions options = null)
         {
-            FileStream file;
             try
             {
-                file = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+                using var file = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+                return Load(file, options);
             }
             catch
             {
                 return 1;
             }
-
-            // C# has no RAII: wrap in `using` so the file handle is released deterministically.
-            // Matches C++ nifly NifFile.cpp:181-182 where `std::ifstream file(fileName, ...)` is a
-            // local that destructs at scope end.
-            using (file)
-                return Load(file, options);
         }
 
         /// <summary>
