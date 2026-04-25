@@ -404,8 +404,10 @@ namespace NiflySharp
                     {
                         if (bsDynamicTriShape.VertexDataSSE != null)
                         {
+                            // Skip this dynamic shape if counts disagree — must not abort
+                            // the enclosing foreach(shape) loop.
                             if (bsDynamicTriShape.VertexDataSSE.Count != bsDynamicTriShape.Vertices.Count)
-                                return;
+                                continue;
 
                             var vertexDataSpan = CollectionsMarshal.AsSpan(bsDynamicTriShape.VertexDataSSE);
 
@@ -420,7 +422,7 @@ namespace NiflySharp
                         else if (bsDynamicTriShape.VertexData != null)
                         {
                             if (bsDynamicTriShape.VertexData.Count != bsDynamicTriShape.Vertices.Count)
-                                return;
+                                continue;
 
                             var vertexDataSpan = CollectionsMarshal.AsSpan(bsDynamicTriShape.VertexData);
 
