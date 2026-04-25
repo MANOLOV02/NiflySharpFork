@@ -2615,7 +2615,9 @@ namespace NiflySharp
                 if (i != 0)
                 {
                     // Start a new set if the previous bones are different
-                    if (skinPart.Partitions.Count > i && skinPart.Partitions[i].Bones != skinPart.Partitions[i - 1].Bones)
+                    // Compare bone palettes by content (SequenceEqual), not by List<> reference.
+                    if (skinPart.Partitions.Count > i &&
+                        !skinPart.Partitions[i].Bones.SequenceEqual(skinPart.Partitions[i - 1].Bones))
                         flags |= BSPartFlag.PF_START_NET_BONESET;
                 }
                 else
