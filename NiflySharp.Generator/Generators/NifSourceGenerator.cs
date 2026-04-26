@@ -1410,6 +1410,16 @@ namespace NiflySharp.Bitfields
                     : $"        public {typeName}() {{ }}\r\n\r\n";
             }
 
+            // Emit [NifBlockName("...")] for classes whose binary name in nif.xml differs from
+            // their C# class name (e.g. "BSSkin::Instance" -> "BSSkin_Instance" because `::` is
+            // not a valid C# identifier). Consumed by NifFile / NiHeader to round-trip the
+            // original name during load/save.
+            string blockNameAttribute = string.Empty;
+            if (!nifObject.IsStruct && nifObject.Name != typeName)
+            {
+                blockNameAttribute = $"    [global::NiflySharp.NifBlockName(\"{nifObject.Name}\")]\r\n";
+            }
+
             // Build deep-clone section
             string cloneSection;
             string fullTypeName = $"{typeName}{typeNameSuffix}";
@@ -1507,7 +1517,7 @@ using {(nifObject.IsStruct ? "NiflySharp.Blocks" : "NiflySharp.Structs")};
 
 namespace {(nifObject.IsStruct ? "NiflySharp.Structs" : "NiflySharp.Blocks")}
 {{{classComment}
-    {typePrefix} {typeName}{typeNameSuffix}{inherit}
+{blockNameAttribute}    {typePrefix} {typeName}{typeNameSuffix}{inherit}
     {{{fieldsSection}
 {typeConstructor}{cloneSection}
 {syncFunc}

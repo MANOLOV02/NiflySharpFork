@@ -45,6 +45,32 @@ namespace NiflySharp
         public bool IsTerrainFile { get; protected set; }
 
         /// <summary>
+        /// Lookup from binary block type name (as written in the NIF) to the C# class type.
+        /// Built once from <see cref="NifBlockNameAttribute"/> declarations on generated block
+        /// classes whose binary name differs from their C# identifier (e.g. <c>BSSkin::Instance</c>).
+        /// </summary>
+        private static Dictionary<string, Type> _blockTypesByBinaryName;
+
+        private static Dictionary<string, Type> GetBlockTypesByBinaryName()
+        {
+            if (_blockTypesByBinaryName != null)
+                return _blockTypesByBinaryName;
+
+            var dict = new Dictionary<string, Type>(StringComparer.Ordinal);
+            foreach (var t in typeof(NifFile).Assembly.GetTypes())
+            {
+                if (!t.IsClass || t.IsAbstract || t.Namespace != "NiflySharp.Blocks")
+                    continue;
+
+                var attr = (NifBlockNameAttribute)Attribute.GetCustomAttribute(t, typeof(NifBlockNameAttribute), inherit: false);
+                if (attr != null)
+                    dict[attr.Name] = t;
+            }
+            _blockTypesByBinaryName = dict;
+            return dict;
+        }
+
+        /// <summary>
         /// Default constructor for completely empty file.
         /// Header values and contents need to be created.
         /// </summary>
@@ -215,8 +241,12 @@ namespace NiflySharp
 
                 try
                 {
-                    // Create a new default instance of the block type
-                    var blockType = Type.GetType("NiflySharp.Blocks." + blockTypeStr);
+                    // Resolve binary block type name to a C# type. Names that don't match a C#
+                    // identifier (e.g. "BSSkin::Instance") are looked up via NifBlockNameAttribute
+                    // emitted by the source generator; everything else falls back to direct
+                    // namespace lookup.
+                    if (!GetBlockTypesByBinaryName().TryGetValue(blockTypeStr, out Type blockType))
+                        blockType = Type.GetType("NiflySharp.Blocks." + blockTypeStr);
                     blockStreamable = Activator.CreateInstance(blockType) as INiStreamable;
                 }
                 catch
@@ -322,7 +352,7 @@ namespace NiflySharp
                 if (Header.Version.FileVersion < NiFileVersion.V5_0_0_1)
                 {
                     // Write block type name
-                    var nistr = new NiString4(block.GetType().Name);
+                    var nistr = new NiString4(NifBlockNameAttribute.GetBinaryName(block.GetType()));
                     nistr.Sync(streamReversible);
                 }
 
