@@ -524,7 +524,7 @@ namespace NiflySharp
         /// <param name="newBlock">New block</param>
         public void AddBlockInfo(INiObject newBlock)
         {
-            string blockTypeName = newBlock.GetType().Name;
+            string blockTypeName = NifBlockNameAttribute.GetBinaryName(newBlock.GetType());
             ushort blockTypeIndex = AddOrFindBlockTypeIndex(blockTypeName);
             blockTypeIndices.Add(blockTypeIndex);
 
@@ -562,7 +562,7 @@ namespace NiflySharp
                 }
             }
 
-            string blockTypeName = newBlock.GetType().Name;
+            string blockTypeName = NifBlockNameAttribute.GetBinaryName(newBlock.GetType());
             ushort blockTypeIndex = AddOrFindBlockTypeIndex(blockTypeName);
             blockTypeIndices[oldBlockId] = blockTypeIndex;
 
