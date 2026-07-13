@@ -126,7 +126,8 @@ namespace NiflySharp.Blocks
             {
                 if (value)
                 {
-                    _vertexDesc.VertexAttributes |= VertexAttribute.Vertex;
+                    if (this is not BSDynamicTriShape)
+                        _vertexDesc.VertexAttributes |= VertexAttribute.Vertex;
 
                     if (_vertexData_List_BSVDSSE != null)
                         _vertexData_List_BSVDSSE.Resize(_numVertices);
@@ -513,8 +514,12 @@ namespace NiflySharp.Blocks
         }
 
         /// <summary>
-        /// Sets mesh vertex positions and enables the vertices flag.
+        /// Sets mesh vertex positions. Enables the vertices flag, except on <see cref="BSDynamicTriShape"/>.
         /// </summary>
+        /// <remarks>
+        /// A <see cref="BSDynamicTriShape"/> must keep the <see cref="VertexAttribute.Vertex"/> flag off:
+        /// its positions live only in the dynamic vertex array, never in the static vertex data.
+        /// </remarks>
         /// <param name="vertices">Positions for all vertices</param>
         public void SetVertexPositions(List<Vector3> vertices)
         {
