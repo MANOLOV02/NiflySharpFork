@@ -37,8 +37,11 @@ namespace NiflySharp.Test
 
             for (int i = 0; i < iterations; i++)
             {
-                fs1.Read(one, 0, BYTES_TO_READ);
-                fs2.Read(two, 0, BYTES_TO_READ);
+                int bytesToRead = (int)Math.Min(BYTES_TO_READ, first.Length - (long)i * BYTES_TO_READ);
+                Array.Clear(one);
+                Array.Clear(two);
+                fs1.ReadExactly(one, 0, bytesToRead);
+                fs2.ReadExactly(two, 0, bytesToRead);
 
                 if (BitConverter.ToInt64(one, 0) != BitConverter.ToInt64(two, 0))
                     return false;

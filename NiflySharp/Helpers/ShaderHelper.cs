@@ -193,26 +193,33 @@ namespace NiflySharp.Helpers
         #endregion
 
         #region Shader Flags Functions
-        public static bool HasFlagSF1(INiShader shader, uint flagValue) => shader.Type switch
+        public static bool HasFlagSF1(INiShader shader, uint flagValue) => flagValue != 0 && shader.Type switch
         {
+            // Note: flagValue 0 means the flag doesn't exist for the shader's game
+            // (Enum.HasFlag(0) would always return true)
             ShaderGameType.FO3NV => shader.ShaderFlags.HasFlag((BSShaderFlags)flagValue),
             ShaderGameType.SK => shader.ShaderFlags_SSPF1.HasFlag((SkyrimShaderPropertyFlags1)flagValue),
             ShaderGameType.FO4 => shader.ShaderFlags_F4SPF1.HasFlag((Fallout4ShaderPropertyFlags1)flagValue),
-            ShaderGameType.FO76SF => shader.ShaderFlagsList1.Any(sf => sf == (BSShaderCRC32)flagValue),
+            ShaderGameType.FO76SF => shader.ShaderFlagsList1?.Any(sf => sf == (BSShaderCRC32)flagValue) ?? false,
             _ => false
         };
 
-        public static bool HasFlagSF2(INiShader shader, uint flagValue) => shader.Type switch
+        public static bool HasFlagSF2(INiShader shader, uint flagValue) => flagValue != 0 && shader.Type switch
         {
+            // Note: flagValue 0 means the flag doesn't exist for the shader's game
+            // (Enum.HasFlag(0) would always return true)
             ShaderGameType.FO3NV => shader.ShaderFlags2.HasFlag((BSShaderFlags2)flagValue),
             ShaderGameType.SK => shader.ShaderFlags_SSPF2.HasFlag((SkyrimShaderPropertyFlags2)flagValue),
             ShaderGameType.FO4 => shader.ShaderFlags_F4SPF2.HasFlag((Fallout4ShaderPropertyFlags2)flagValue),
-            ShaderGameType.FO76SF => shader.ShaderFlagsList2.Any(sf => sf == (BSShaderCRC32)flagValue),
+            ShaderGameType.FO76SF => shader.ShaderFlagsList2?.Any(sf => sf == (BSShaderCRC32)flagValue) ?? false,
             _ => false
         };
 
         public static void SetFlagSF1(INiShader shader, uint flagValue, bool set)
         {
+            if (flagValue == 0)
+                return; // Flag doesn't exist for the shader's game
+
             if (set)
             {
                 switch (shader.Type)
@@ -256,6 +263,9 @@ namespace NiflySharp.Helpers
 
         public static void SetFlagSF2(INiShader shader, uint flagValue, bool set)
         {
+            if (flagValue == 0)
+                return; // Flag doesn't exist for the shader's game
+
             if (set)
             {
                 switch (shader.Type)

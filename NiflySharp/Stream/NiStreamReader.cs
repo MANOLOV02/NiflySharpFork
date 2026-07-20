@@ -21,7 +21,7 @@ namespace NiflySharp.Stream
 
             int i = 0;
             byte b;
-            while ((b = Reader.ReadByte()) != '\n' && i < maxCount)
+            while (i < maxCount && (b = Reader.ReadByte()) != '\n')
             {
                 byteArr[i] = b;
                 i++;

@@ -60,18 +60,14 @@ namespace NiflySharp.Stream
         {
             if (CurrentMode == Mode.Read)
             {
-                byte bt;
+                // Any non-zero value counts as true (files from other exporters may store e.g. 0xFF)
+                uint bt;
                 if (Version.FileVersion <= NiFileVersion.V4_0_0_2)
-                    bt = (byte)In.Reader.ReadUInt32();
+                    bt = In.Reader.ReadUInt32();
                 else
                     bt = In.Reader.ReadByte();
 
-                b = bt switch
-                {
-                    0 => false,
-                    1 => true,
-                    _ => throw new Exception("Byte value for boolean is > 1!")
-                };
+                b = bt != 0;
             }
             else
             {
@@ -87,18 +83,17 @@ namespace NiflySharp.Stream
         {
             if (CurrentMode == Mode.Read)
             {
-                byte bt;
+                uint bt;
                 if (Version.FileVersion <= NiFileVersion.V4_0_0_2)
-                    bt = (byte)In.Reader.ReadUInt32();
+                    bt = In.Reader.ReadUInt32();
                 else
                     bt = In.Reader.ReadByte();
 
                 b = bt switch
                 {
                     0 => false,
-                    1 => true,
-                    2 => null,
-                    _ => throw new Exception("Byte value for boolean is > 2!")
+                    2 => null, // sentinel used by the write side for "no value"
+                    _ => true  // any other non-zero value counts as true
                 };
             }
             else
@@ -340,7 +335,7 @@ namespace NiflySharp.Stream
                         if (size > list.Capacity)
                             list.Capacity = size;
 
-                        for (int i = 0; i < size; i++)
+                        for (int i = cur; i < size; i++)
                             list.Add(default);
                     }
                 }
@@ -378,8 +373,7 @@ namespace NiflySharp.Stream
                 if (size < 0)
                     throw new Exception("Read list size is < 0!");
 
-                list.Clear();
-                list.Capacity = size;
+                ResizeListDefaults(ref list, size);
             }
             else
             {
@@ -629,14 +623,8 @@ namespace NiflySharp.Stream
                     int cur = array.Length;
                     if (size != cur)
                     {
+                        // Preserves existing elements; new slots (cur..size) are default-initialized
                         Array.Resize(ref array, size);
-                        array = new T[size];
-
-                        if (cur < size && cur > 0)
-                        {
-                            for (int i = cur; i < size; i++)
-                                array[i] = default;
-                        }
                     }
                 }
             }

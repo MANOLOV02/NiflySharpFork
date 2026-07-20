@@ -24,7 +24,7 @@ namespace NiflySharp.Blocks
 
         public void UpdateBounds()
         {
-            Bounds = new BoundingSphere(_vertices ?? default);
+            Bounds = new BoundingSphere(_vertices ?? []);
         }
 
         public ushort NumVertices => _numVertices;
@@ -86,13 +86,17 @@ namespace NiflySharp.Blocks
 
             set
             {
-                if (_dataFlags != null && value && _dataFlags.NumUVSets == 0)
+                if (_dataFlags != null)
                 {
-                    _dataFlags.NumUVSets = 1;
-                }
-                else if (_dataFlags != null && !value)
-                {
-                    _dataFlags.NumUVSets = 0;
+                    if (value)
+                    {
+                        if (_dataFlags.NumUVSets == 0)
+                            _dataFlags.NumUVSets = 1;
+                    }
+                    else
+                    {
+                        _dataFlags.NumUVSets = 0;
+                    }
                 }
                 else
                 {
@@ -101,9 +105,15 @@ namespace NiflySharp.Blocks
                 }
 
                 if (value)
-                    _uVSets = _uVSets.Resize(_numVertices);
+                {
+                    // Old format can have multiple UV sets stored in one flattened list
+                    int numUVSets = _dataFlags != null && _dataFlags.NumUVSets > 0 ? _dataFlags.NumUVSets : 1;
+                    _uVSets = _uVSets.Resize(numUVSets * _numVertices);
+                }
                 else
+                {
                     _uVSets?.Clear();
+                }
             }
         }
 
@@ -115,10 +125,12 @@ namespace NiflySharp.Blocks
 
             set
             {
-                if (_dataFlags != null && !value)
+                if (_dataFlags != null)
                 {
                     // Only remove NBT method for false and don't set it for true
-                    _dataFlags.NBTMethod = Enums.NiNBTMethod.NBT_METHOD_NONE;
+                    // (use SetTangentsFlag to choose an NBT method explicitly)
+                    if (!value)
+                        _dataFlags.NBTMethod = Enums.NiNBTMethod.NBT_METHOD_NONE;
                 }
                 else
                 {

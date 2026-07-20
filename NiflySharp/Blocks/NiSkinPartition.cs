@@ -160,7 +160,8 @@ namespace NiflySharp.Blocks
 
             foreach (ref var p in spanPartitions)
             {
-                p.TrianglesCopy?.Clear();
+                p.TrianglesCopy ??= [];
+                p.TrianglesCopy.Clear();
                 p.Triangles?.Clear();
                 p.NumStrips = 0;
                 p.Strips?.Clear();

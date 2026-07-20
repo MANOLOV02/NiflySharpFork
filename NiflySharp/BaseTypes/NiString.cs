@@ -101,40 +101,38 @@ namespace NiflySharp
 
         public void Write(NiStreamWriter stream, int szSize)
         {
+            string content = Content ?? string.Empty;
+
+            // Clamp the content so the size prefix (including the optional null
+            // terminator) always fits into the prefix type and matches the payload.
+            int maxLength = szSize switch
+            {
+                1 => byte.MaxValue,
+                2 => ushort.MaxValue,
+                _ => int.MaxValue
+            };
+
+            if (NullOutput)
+                maxLength -= 1;
+
+            if (content.Length > maxLength)
+                content = content[..maxLength];
+
+            int sz = content.Length + (NullOutput ? 1 : 0);
+
             if (szSize == 1)
-            {
-                var sz = (byte)(Content?.Length ?? 0);
-
-                if (NullOutput)
-                    sz += 1;
-
-                stream.Writer.Write(sz);
-            }
+                stream.Writer.Write((byte)sz);
             else if (szSize == 2)
-            {
-                var sz = (ushort)(Content?.Length ?? 0);
-
-                if (NullOutput)
-                    sz += 1;
-
-                stream.Writer.Write(sz);
-            }
+                stream.Writer.Write((ushort)sz);
             else
+                stream.Writer.Write((uint)sz);
+
+            if (content.Length > 0)
             {
-                var sz = (uint)(Content?.Length ?? 0);
-
-                if (NullOutput)
-                    sz += 1;
-
-                stream.Writer.Write(sz);
-            }
-
-            if (Content != null)
-            {
-                var bytes = Encoding.Latin1.GetBytes(Content);
+                var bytes = Encoding.Latin1.GetBytes(content);
                 stream.Writer.Write(bytes);
             }
-            
+
             if (NullOutput)
                 stream.Writer.Write('\0');
         }

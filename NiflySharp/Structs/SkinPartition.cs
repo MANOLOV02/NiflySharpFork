@@ -54,8 +54,9 @@ namespace NiflySharp.Structs
 
             IndicesHelper.ApplyMapToTriangles(ref TrianglesCopy, VertexMap, out _);
 
-            foreach (var t in TrianglesCopy)
-                t.Rotate();
+            var trianglesCopySpan = CollectionsMarshal.AsSpan(TrianglesCopy);
+            for (int i = 0; i < trianglesCopySpan.Length; i++)
+                trianglesCopySpan[i].Rotate();
 
             if (Triangles.Count != TrianglesCopy.Count)
             {
@@ -66,7 +67,7 @@ namespace NiflySharp.Structs
 
         public void GenerateMappedTrianglesFromTrueTrianglesAndVertexMap()
         {
-            if (VertexMap?.Count == 0 || TrianglesCopy?.Count == 0)
+            if ((VertexMap?.Count ?? 0) == 0 || (TrianglesCopy?.Count ?? 0) == 0)
             {
                 Triangles ??= [];
                 Triangles.Clear();
@@ -89,8 +90,9 @@ namespace NiflySharp.Structs
 
             IndicesHelper.ApplyMapToTriangles(ref Triangles, invmap, out _);
 
-            foreach (var tri in Triangles)
-                tri.Rotate();
+            var trianglesSpan = CollectionsMarshal.AsSpan(Triangles);
+            for (int i = 0; i < trianglesSpan.Length; i++)
+                trianglesSpan[i].Rotate();
 
             if (Triangles.Count != TrianglesCopy.Count)
             {
@@ -101,6 +103,15 @@ namespace NiflySharp.Structs
 
         public void GenerateVertexMapFromTrueTriangles()
         {
+            VertexMap ??= [];
+            VertexMap.Clear();
+
+            if ((TrianglesCopy?.Count ?? 0) == 0)
+            {
+                NumVertices = 0;
+                return;
+            }
+
             ushort maxInd = IndicesHelper.CalcMaxTriangleIndex(TrianglesCopy);
 
             var vertUsed = new List<bool>(maxInd + 1);
@@ -113,13 +124,11 @@ namespace NiflySharp.Structs
                 vertUsed[trueTriangle.V3] = true;
             }
 
-            VertexMap ??= [];
-            VertexMap.Clear();
-
-            for (ushort i = 0; i < vertUsed.Count; ++i)
+            // 'int' counter: with maxInd == ushort.MaxValue, a ushort counter would wrap and never terminate
+            for (int i = 0; i < vertUsed.Count; ++i)
             {
                 if (vertUsed[i])
-                    VertexMap.Add(i);
+                    VertexMap.Add((ushort)i);
             }
 
             NumVertices = (ushort)VertexMap.Count;

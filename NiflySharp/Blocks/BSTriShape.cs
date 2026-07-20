@@ -490,7 +490,7 @@ namespace NiflySharp.Blocks
                 }
             }
 
-            _triangles = triangles.Take(triCount).ToList();
+            _triangles = triangles?.Take(triCount).ToList() ?? [];
 
             UpdateRawVertexPositions();
 
@@ -1061,7 +1061,7 @@ namespace NiflySharp.Blocks
             if (this is BSDynamicTriShape)
                 _vertexDesc.DynamicVertexSize = 4; // 4 floats
 
-            _dataSize = (VertexSize * _numVertices) + (6 * _numTriangles_ui > 0 ? _numTriangles_ui : _numTriangles_us);
+            _dataSize = (VertexSize * _numVertices) + (6 * (_numTriangles_ui > 0 ? _numTriangles_ui : _numTriangles_us));
         }
 
         /// <summary>

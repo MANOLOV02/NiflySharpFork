@@ -36,13 +36,14 @@ namespace NiflySharp
         {
             if (stream.Version.FileVersion < NiFileVersion.V20_1_0_3)
             {
-                int sz = _str.Length;
-                stream.Sync(ref sz);
-
                 const int maxLength = 2048;
 
-                if (sz > maxLength)
-                    sz = maxLength;
+                // Clamp before writing the length prefix so prefix and payload agree
+                int sz = _str.Length > maxLength ? maxLength : _str.Length;
+                stream.Sync(ref sz);
+
+                if (stream.CurrentMode == NiStreamReversible.Mode.Read && sz < 0)
+                    throw new System.IO.InvalidDataException("Read string length is < 0!");
 
                 var buf = new byte[sz];
 
@@ -54,6 +55,7 @@ namespace NiflySharp
                         buf = Encoding.Latin1.GetBytes(_str);
                 }
 
+                // On read, consume exactly 'sz' bytes so the stream stays aligned
                 stream.Sync(ref buf);
 
                 if (stream.CurrentMode == NiStreamReversible.Mode.Read)

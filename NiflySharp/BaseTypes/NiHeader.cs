@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace NiflySharp
@@ -260,6 +261,13 @@ namespace NiflySharp
             else
                 Endian = NiEndian.Little;
 
+            if (Endian != NiEndian.Little)
+            {
+                // Big endian files (PS3/X360) are not supported.
+                // Fail cleanly instead of parsing everything as garbage.
+                return;
+            }
+
             if (vfile >= NiVersion.ToFile(10, 0, 1, 8))
             {
                 Version.UserVersion = stream.Reader.ReadUInt32();
@@ -367,9 +375,13 @@ namespace NiflySharp
             }
             else
             {
-                stream.Writer.Write(Copyright1.PadRight(128, '\0').ToCharArray());
-                stream.Writer.Write(Copyright2.PadRight(128, '\0').ToCharArray());
-                stream.Writer.Write(Copyright3.PadRight(128, '\0').ToCharArray());
+                // Newline-terminated lines, symmetric with GetLine() on the read side
+                stream.Writer.Write(Encoding.Latin1.GetBytes(Copyright1 ?? string.Empty));
+                stream.Writer.Write((byte)0x0A);
+                stream.Writer.Write(Encoding.Latin1.GetBytes(Copyright2 ?? string.Empty));
+                stream.Writer.Write((byte)0x0A);
+                stream.Writer.Write(Encoding.Latin1.GetBytes(Copyright3 ?? string.Empty));
+                stream.Writer.Write((byte)0x0A);
             }
 
             if (Version.FileVersion >= NiVersion.ToFile(20, 0, 0, 3))
@@ -443,7 +455,7 @@ namespace NiflySharp
         /// <returns>Block type found</returns>
         public bool GetBlockTypeIndex(int blockId, out ushort blockTypeIndex)
         {
-            if (blockId == NiRef.NPOS || blockId >= BlockCount)
+            if (blockId < 0 || blockId >= BlockCount)
             {
                 blockTypeIndex = 0;
                 return false;
@@ -608,7 +620,8 @@ namespace NiflySharp
         /// <returns>Block size or <see cref="NiRef.NPOS"/></returns>
         public int GetBlockSize(int blockId)
         {
-            if (blockId >= 0 && blockId < BlockCount)
+            // Block sizes only exist in the header for file versions >= 20.2.0.5
+            if (blockSizes != null && blockId >= 0 && blockId < blockSizes.Count)
                 return blockSizes[blockId];
 
             return NiRef.NPOS;

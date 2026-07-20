@@ -202,7 +202,17 @@ namespace NiflySharp
             Header = new NiHeader();
 
             var streamReader = new NiStreamReader(stream, this);
-            Header.Read(streamReader);
+
+            try
+            {
+                Header.Read(streamReader);
+            }
+            catch
+            {
+                // Truncated or malformed header data
+                Clear();
+                return 1;
+            }
 
             if (!Header.Valid)
             {
@@ -251,16 +261,34 @@ namespace NiflySharp
                 }
                 catch
                 {
-                    // Block type is unknown
+                    // Block type is unknown. Without a stored block size (only present for
+                    // file versions >= 20.2.0.5), the block can't be skipped over.
+                    int blockSize = Header.GetBlockSize(i);
+                    if (blockSize < 0)
+                    {
+                        Clear();
+                        return 1;
+                    }
+
                     HasUnknownBlocks = true;
-                    block = new NiUnknown(streamReversible, Header.GetBlockSize(i));
+                    block = new NiUnknown(streamReversible, blockSize);
                 }
 
                 if (blockStreamable != null)
                 {
-                    // Read the block
-                    //streamReversible.Argument = null;
-                    blockStreamable.Sync(streamReversible);
+                    try
+                    {
+                        // Read the block
+                        //streamReversible.Argument = null;
+                        blockStreamable.Sync(streamReversible);
+                    }
+                    catch
+                    {
+                        // Truncated or malformed block data
+                        Clear();
+                        return 1;
+                    }
+
                     block = blockStreamable as NiObject;
                 }
 
@@ -295,12 +323,10 @@ namespace NiflySharp
                 return 1;
             }
 
-            int result = Save(file, options);
-
-            file.Close();
-            file.Dispose();
-
-            return result;
+            using (file)
+            {
+                return Save(file, options);
+            }
         }
 
         /// <summary>
@@ -500,6 +526,22 @@ namespace NiflySharp
         /// </summary>
         public void FinalizeData()
         {
+            // Blocks that keep placeholder (NPOS) refs normally set KeepEmptyRefs in
+            // BeforeSync, but that only runs during Sync — after CleanInvalidRefs below.
+            // Loaded files got the flag during load; set it here for blocks that were
+            // created programmatically (or cloned) and are being saved for the first time.
+            foreach (var bsSkinInst in Blocks.OfType<BSSkin_Instance>())
+            {
+                if (bsSkinInst.Bones != null)
+                    bsSkinInst.Bones.KeepEmptyRefs = Header.Version.IsSF();
+            }
+
+            foreach (var controller in Blocks.OfType<NiMultiTargetTransformController>())
+            {
+                if (controller.ExtraTargets != null)
+                    controller.ExtraTargets.KeepEmptyRefs = true;
+            }
+
             foreach (var block in Blocks)
             {
                 foreach (var refArray in block.ReferenceArrays)
@@ -830,7 +872,7 @@ namespace NiflySharp
         /// <returns>Block reference or null</returns>
         public INiObject GetBlock(int blockId)
         {
-            if (blockId == NiRef.NPOS || blockId >= Header.BlockCount)
+            if (blockId < 0 || blockId >= Header.BlockCount)
                 return null;
 
             return Blocks[blockId];
@@ -857,7 +899,7 @@ namespace NiflySharp
         /// <returns>Block reference of supplied type or null</returns>
         public T GetBlock<T>(int blockId) where T : class
         {
-            if (blockId == NiRef.NPOS || blockId >= Header.BlockCount)
+            if (blockId < 0 || blockId >= Header.BlockCount)
                 return null;
 
             return Blocks[blockId] as T;
@@ -1220,7 +1262,9 @@ namespace NiflySharp
             if (blockType.Namespace != "NiflySharp.Blocks")
                 return;
 
-            string blockTypeName = blockType.Name;
+            // The header stores binary block type names (e.g. "BSSkin::Instance"),
+            // which can differ from the C# class name
+            string blockTypeName = NifBlockNameAttribute.GetBinaryName(blockType);
             if (!Header.GetBlockTypeIndex(blockTypeName, out ushort blockTypeIndex))
                 return;
 
@@ -1687,7 +1731,7 @@ namespace NiflySharp
                         // Reorder shapes on root node if order is provided
                         if (sortState.RootShapeOrder.Count == shapeIndices.Count)
                         {
-                            var newShapeIndices = new List<int>(shapeIndices.Count);
+                            var newShapeIndices = new List<int>().Resize(shapeIndices.Count);
                             for (int si = 0; si < sortState.RootShapeOrder.Count; si++)
                             {
                                 int it = shapeIndices.FindIndex(i => i == sortState.RootShapeOrder[si]);
@@ -1736,7 +1780,7 @@ namespace NiflySharp
                         // Reorder shapes on root node if order is provided
                         if (sortState.RootShapeOrder.Count == shapeIndices.Count)
                         {
-                            var newShapeIndices = new List<int>(shapeIndices.Count);
+                            var newShapeIndices = new List<int>().Resize(shapeIndices.Count);
                             for (int si = 0; si < sortState.RootShapeOrder.Count; si++)
                             {
                                 int it = shapeIndices.FindIndex(i => i == sortState.RootShapeOrder[si]);
@@ -2120,7 +2164,7 @@ namespace NiflySharp
                                             {
                                                 int weightCount = Math.Min(BoneWeights4.Length, (int)part.NumWeightsPerVertex);
 
-                                                if (part.HasVertexWeights ?? false && vertexWeights != null)
+                                                if ((part.HasVertexWeights ?? false) && vertexWeights != null)
                                                 {
                                                     ref var vertex = ref vertexDataSpan[vindex];
                                                     vertex.BoneWeights = default;
@@ -2132,7 +2176,7 @@ namespace NiflySharp
                                                     }
                                                 }
 
-                                                if (part.HasBoneIndices ?? false && boneIndices != null)
+                                                if ((part.HasBoneIndices ?? false) && boneIndices != null)
                                                 {
                                                     ref var vertex = ref vertexDataSpan[vindex];
                                                     vertex.BoneIndices = default;
@@ -2432,8 +2476,9 @@ namespace NiflySharp
             bsTriShape?.CalcDataSizes(Header.Version);
 
             // Align triangles for comparisons
-            foreach (var tri in tris)
-                tri.Rotate();
+            var trisSpan = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(tris);
+            for (int ti = 0; ti < trisSpan.Length; ti++)
+                trisSpan[ti].Rotate();
 
             // Make maps of vertices to bones and weights
             var vertBoneWeights = new Dictionary<ushort, List<BoneVertData>>();
@@ -2582,11 +2627,13 @@ namespace NiflySharp
 
 		        foreach (var v in part.VertexMap)
                 {
+                    // Every mapped vertex must contribute exactly 4 indices and 4 weights,
+                    // otherwise the parallel arrays misalign. Unweighted vertices get zeros.
+                    var b = new byte[4];
+                    var vw = new float[4];
+
                     if (vertBoneWeights.TryGetValue(v, out var vertBoneWeightsList))
                     {
-                        var b = new byte[4];
-                        var vw = new float[4];
-
                         float tot = 0.0f;
                         for (int bi = 0; bi < vertBoneWeightsList.Count; bi++)
                         {
@@ -2605,13 +2652,13 @@ namespace NiflySharp
                         if (tot != 0.0f)
                             for (int bi = 0; bi < 4; bi++)
                                 vw[bi] /= tot;
-
-                        part.BoneIndices ??= [];
-                        part.BoneIndices.AddRange(b);
-
-                        part.VertexWeights ??= [];
-                        part.VertexWeights.AddRange(vw);
                     }
+
+                    part.BoneIndices ??= [];
+                    part.BoneIndices.AddRange(b);
+
+                    part.VertexWeights ??= [];
+                    part.VertexWeights.AddRange(vw);
 		        }
 	        }
 
@@ -2738,6 +2785,8 @@ namespace NiflySharp
             if (bitangents.Count != numVerts)
                 ArgumentOutOfRangeException.ThrowIfNotEqual(bitangents.Count, numVerts, nameof(bitangents));
 
+            shape.ExtraDataList ??= new NiBlockRefArray<NiExtraData>();
+
             // Find existing fitting NiBinaryExtraData block
             var binaryData = shape.ExtraDataList
                 .GetBlocks(this)
@@ -2754,7 +2803,6 @@ namespace NiflySharp
                 };
 
                 int binaryDataId = AddBlock(binaryData);
-                shape.ExtraDataList ??= new NiBlockRefArray<NiExtraData>();
                 shape.ExtraDataList.AddBlockRef(binaryDataId);
             }
 
@@ -2792,6 +2840,9 @@ namespace NiflySharp
         public void DeleteBinaryTangentData(INiShape shape)
         {
             ArgumentNullException.ThrowIfNull(shape);
+
+            if (shape.ExtraDataList == null)
+                return;
 
             foreach (var binaryData in shape.ExtraDataList
                 .GetBlocks(this)

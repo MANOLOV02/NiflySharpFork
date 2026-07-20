@@ -1,4 +1,5 @@
 ﻿using NiflySharp.Enums;
+using NiflySharp.Stream;
 using static NiflySharp.Helpers.ShaderHelper;
 
 namespace NiflySharp.Blocks
@@ -6,6 +7,17 @@ namespace NiflySharp.Blocks
     public partial class BSShaderProperty : NiShadeProperty, INiShader
     {
         public ShaderGameType Type { get; set; }
+
+        /// <summary>
+        /// Assigns the shader game type for legacy (FO3/NV) shader blocks.
+        /// Modern shader blocks (BSLightingShaderProperty etc.) hide this with
+        /// their own BeforeSync that assigns SK/FO4/FO76SF instead.
+        /// </summary>
+        public new void BeforeSync(NiStreamReversible stream)
+        {
+            if (stream.Version.IsFO3())
+                Type = ShaderGameType.FO3NV;
+        }
 
         public BSShaderType ShaderType_FO3_NV { get => _shaderType_BSST; set => _shaderType_BSST = value; }
         public BSLightingShaderType ShaderType_SK_FO4 { get => _shaderType; set => _shaderType = value; }

@@ -141,7 +141,10 @@ namespace NiflySharp
 
         public override NiBlockRefArray<T> Clone()
         {
-            var clone = new NiBlockRefArray<T>();
+            var clone = new NiBlockRefArray<T>
+            {
+                KeepEmptyRefs = KeepEmptyRefs
+            };
             clone.Resize(Count);
 
             for (int i = 0; i < clone.Count; i++)

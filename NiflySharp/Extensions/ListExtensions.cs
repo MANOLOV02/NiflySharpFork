@@ -29,6 +29,9 @@ namespace NiflySharp.Extensions
 
         public static IEnumerable<List<T>> SplitByFixedSize<T>(this List<T> list, int nSize)
         {
+            if (nSize <= 0)
+                yield break;
+
             for (int i = 0; i < list.Count; i += nSize)
             {
                 yield return list.GetRange(i, Math.Min(nSize, list.Count - i));
@@ -37,11 +40,22 @@ namespace NiflySharp.Extensions
 
         public static IEnumerable<List<T>> SplitByFlexSize<T, SizeT>(this List<T> list, List<SizeT> sizeList)
         {
-            for (int i = 0; i < list.Count;)
+            int pos = 0;
+
+            foreach (var sizeValue in sizeList)
             {
-                int size = Convert.ToInt32(sizeList[i]);
-                var range = list.GetRange(i, Math.Min(size, list.Count - i));
-                i += size;
+                if (pos >= list.Count)
+                    yield break;
+
+                int size = Convert.ToInt32(sizeValue);
+                if (size <= 0)
+                {
+                    yield return [];
+                    continue;
+                }
+
+                var range = list.GetRange(pos, Math.Min(size, list.Count - pos));
+                pos += size;
                 yield return range;
             }
         }
