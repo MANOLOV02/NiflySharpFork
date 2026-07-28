@@ -1,4 +1,4 @@
-﻿using NiflySharp.Enums;
+using NiflySharp.Enums;
 using NiflySharp.Stream;
 using NiflySharp.Structs;
 using System.Collections.Generic;
@@ -189,7 +189,7 @@ namespace NiflySharp.Blocks
         /// <summary>
         /// Do Translucency (starting with FO76).
         /// </summary>
-        public bool DoTranslucency { get => _doTranslucency ?? false; set => _doTranslucency = value; }
+        public bool DoTranslucency { get => _doTranslucency.GetValueOrDefault(); set => _doTranslucency = value; }
 
         /// <summary>
         /// Translucency properties (starting with FO76).
@@ -204,12 +204,12 @@ namespace NiflySharp.Blocks
         /// <summary>
         /// Use Screen Space Reflections (starting with FO4).
         /// </summary>
-        public bool UseScreenSpaceReflections { get => _useScreenSpaceReflections ?? false; set => _useScreenSpaceReflections = value; }
+        public bool UseScreenSpaceReflections { get => _useScreenSpaceReflections.GetValueOrDefault(); set => _useScreenSpaceReflections = value; }
 
         /// <summary>
         /// Wetness Control: Use SSR (starting with FO4).
         /// </summary>
-        public bool WetnessControl_UseSSR { get => _wetnessControl_UseSSR ?? false; set => _wetnessControl_UseSSR = value; }
+        public bool WetnessControl_UseSSR { get => _wetnessControl_UseSSR.GetValueOrDefault(); set => _wetnessControl_UseSSR = value; }
 
         /// <summary>
         /// Tints the base texture. Overridden by game settings.

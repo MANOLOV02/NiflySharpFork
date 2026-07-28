@@ -87,6 +87,31 @@ namespace NiflySharp
         private List<int> groupSizes;
 
         /// <summary>
+        /// Block indices of the root blocks, stored in the file footer
+        /// </summary>
+        private List<int> rootRefs = [];
+
+        /// <summary>
+        /// Block indices of the root blocks of the file (from/for the file footer).
+        /// An empty list falls back to the first block being the only root when saving.
+        /// </summary>
+        public IReadOnlyList<int> RootBlockIds => rootRefs;
+
+        /// <summary>
+        /// Sets the block indices of the root blocks of the file (written to the file footer).
+        /// </summary>
+        /// <param name="blockIds">Block indices of the root blocks</param>
+        public void SetRootBlockIds(IEnumerable<int> blockIds)
+        {
+            rootRefs = blockIds == null ? [] : [.. blockIds];
+        }
+
+        /// <summary>
+        /// Block type strings are stored in front of each block instead of in the header.
+        /// </summary>
+        public bool HasInlineBlockTypes => Version.FileVersion < NiFileVersion.V5_0_0_1;
+
+        /// <summary>
         /// All version information of the file
         /// </summary>
         public NiVersion Version { get; set; }
@@ -164,11 +189,9 @@ namespace NiflySharp
                 embedData = [];
             }
 
-            if (Version.FileVersion >= NiFileVersion.V5_0_0_1)
-            {
-                blockTypes = [];
-                blockTypeIndices = [];
-            }
+            // Block types are tracked for every version, only their storage location differs
+            blockTypes = [];
+            blockTypeIndices = [];
 
             if (Version.FileVersion >= NiFileVersion.V20_2_0_5)
             {
@@ -195,6 +218,7 @@ namespace NiflySharp
             blockTypeIndices?.Clear();
             blockSizes?.Clear();
             strings?.Clear();
+            rootRefs?.Clear();
         }
 
         /// <summary>
@@ -321,6 +345,12 @@ namespace NiflySharp
                 for (int i = 0; i < blockTypeIndices.Capacity; i++)
                     blockTypeIndices.Add(stream.Reader.ReadUInt16());
             }
+            else
+            {
+                // Block types are stored in front of each block and registered while loading them
+                blockTypes = [];
+                blockTypeIndices = [];
+            }
 
             if (vfile >= NiFileVersion.V20_2_0_5)
             {
@@ -426,6 +456,7 @@ namespace NiflySharp
                 blockTypes.ForEach(bt => bt.Write(stream, 4));
                 blockTypeIndices.ForEach(bti => stream.Writer.Write(bti));
             }
+            // Older versions write the block type in front of each block instead (see WriteBlockType)
 
             if (Version.FileVersion >= NiFileVersion.V20_2_0_5)
             {
@@ -445,6 +476,71 @@ namespace NiflySharp
                 stream.Writer.Write(groupSizes.Count);
                 groupSizes.ForEach(gs => stream.Writer.Write(gs));
             }
+        }
+
+        /// <summary>
+        /// Reads the inline block type string of the next block and registers it for that block.
+        /// Only used for file versions that have <see cref="HasInlineBlockTypes"/> set.
+        /// </summary>
+        /// <param name="stream">Stream</param>
+        /// <returns>Block type name</returns>
+        public string ReadBlockType(NiStreamReversible stream)
+        {
+            var blockType = new NiString4();
+            blockType.Sync(stream);
+
+            blockTypeIndices.Add(AddOrFindBlockTypeIndex(blockType.Content));
+            return blockType.Content;
+        }
+
+        /// <summary>
+        /// Writes the inline block type string of block <paramref name="blockId"/>.
+        /// Only used for file versions that have <see cref="HasInlineBlockTypes"/> set.
+        /// </summary>
+        /// <param name="stream">Stream</param>
+        /// <param name="blockId">Block index</param>
+        public void WriteBlockType(NiStreamReversible stream, int blockId)
+        {
+            var blockType = new NiString4(GetBlockTypeNameById(blockId) ?? string.Empty);
+            blockType.Sync(stream);
+        }
+
+        /// <summary>
+        /// Reads the file footer, which follows all blocks.
+        /// </summary>
+        /// <param name="stream">Stream</param>
+        public void ReadFooter(NiStreamReader stream)
+        {
+            rootRefs = [];
+
+            if (Version.FileVersion < NiFileVersion.V3_3_0_13)
+                return;
+
+            int numRoots = stream.Reader.ReadInt32();
+            if (numRoots < 0 || numRoots > NifConstants.BlockIndexLimit)
+                return; // Footer is unusable, a default one is written instead
+
+            rootRefs = new List<int>(numRoots);
+
+            for (int i = 0; i < numRoots; i++)
+                rootRefs.Add(stream.Reader.ReadInt32());
+        }
+
+        /// <summary>
+        /// Writes the file footer, which follows all blocks.
+        /// </summary>
+        /// <param name="stream">Stream</param>
+        public void WriteFooter(NiStreamWriter stream)
+        {
+            if (Version.FileVersion < NiFileVersion.V3_3_0_13)
+                return;
+
+            // Fall back to the first block being the only root
+            if (rootRefs.Count == 0)
+                rootRefs.Add(0);
+
+            stream.Writer.Write(rootRefs.Count);
+            rootRefs.ForEach(rr => stream.Writer.Write(rr));
         }
 
         /// <summary>
@@ -609,6 +705,15 @@ namespace NiflySharp
             if (Version.FileVersion >= NiFileVersion.V20_2_0_5)
                 blockSizes.RemoveAt(blockId);
 
+            // Drop or shift the root references of the footer
+            for (int i = rootRefs.Count - 1; i >= 0; i--)
+            {
+                if (rootRefs[i] == blockId)
+                    rootRefs.RemoveAt(i);
+                else if (rootRefs[i] != NiRef.NPOS && rootRefs[i] > blockId)
+                    rootRefs[i]--;
+            }
+
             BlockCount--;
             return true;
         }
@@ -750,14 +855,17 @@ namespace NiflySharp
             blocks.Clear();
             blocks.AddRange(newBlocks);
 
-            if (Version.FileVersion >= NiFileVersion.V5_0_0_1)
+            var newBlockTypeIndices = new List<ushort>(blockTypeIndices);
+
+            for (int i = 0; i < BlockCount; i++)
+                newBlockTypeIndices[newOrder[i]] = blockTypeIndices[i];
+
+            blockTypeIndices = newBlockTypeIndices;
+
+            for (int i = 0; i < rootRefs.Count; i++)
             {
-                var newBlockTypeIndices = new List<ushort>(blockTypeIndices);
-
-                for (int i = 0; i < BlockCount; i++)
-                    newBlockTypeIndices[newOrder[i]] = blockTypeIndices[i];
-
-                blockTypeIndices = newBlockTypeIndices;
+                if (rootRefs[i] != NiRef.NPOS && rootRefs[i] < newOrder.Count)
+                    rootRefs[i] = newOrder[rootRefs[i]];
             }
 
             if (Version.FileVersion >= NiFileVersion.V20_2_0_5)

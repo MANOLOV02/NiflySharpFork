@@ -93,6 +93,9 @@ namespace NiflySharp
             else
             {
                 int bigSize = stream.Reader.ReadInt32();
+                if (bigSize < 0 || bigSize > NifConstants.ArraySizeLimit)
+                    throw new Exception("Read string size is out of range!");
+
                 bytes = stream.Reader.ReadBytes(bigSize);
             }
 

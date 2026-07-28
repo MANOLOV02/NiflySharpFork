@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -20,7 +20,7 @@ namespace NiflySharp.Generator
         /// </summary>
         private static readonly Dictionary<string, string> TypeMapping = new Dictionary<string, string>()
         {
-            { "bool", "bool?" },
+            { "bool", "NiBool" },
             { "uint64", "ulong" },
             { "int64", "long" },
             { "ulittle32", "uint" },
@@ -47,6 +47,7 @@ namespace NiflySharp.Generator
             "char",
             "bool",
             "bool?",
+            "NiBool",
             "float",
             "double",
             "decimal",

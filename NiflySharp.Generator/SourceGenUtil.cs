@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -522,7 +522,7 @@ namespace NiflySharp.Generator
                     // Get numeric value of bitfield
                     normFieldName = $"({normFieldName}?.Value ?? 0)";
                 }
-                else if (NifXml.DoTypeMapping(field.Type) == "bool?")
+                else if (NifXml.DoTypeMapping(field.Type) == "NiBool")
                 {
                     // Append GetValueOrDefault for nullable booleans
                     normFieldName = $"{normFieldName}.GetValueOrDefault()";

@@ -1,4 +1,4 @@
-﻿using NiflySharp.Extensions;
+using NiflySharp.Extensions;
 using NiflySharp.Structs;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,7 +31,7 @@ namespace NiflySharp.Blocks
 
         public bool HasVertices
         {
-            get => _hasVertices ?? false;
+            get => _hasVertices.GetValueOrDefault();
             set
             {
                 _hasVertices = value;
@@ -54,7 +54,7 @@ namespace NiflySharp.Blocks
 
         public bool HasNormals
         {
-            get => _hasNormals ?? false;
+            get => _hasNormals.GetValueOrDefault();
             set
             {
                 _hasNormals = value;
@@ -67,7 +67,7 @@ namespace NiflySharp.Blocks
 
         public bool HasVertexColors
         {
-            get => _hasVertexColors ?? false;
+            get => _hasVertexColors.GetValueOrDefault();
             set
             {
                 _hasVertexColors = value;

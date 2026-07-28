@@ -2,6 +2,7 @@ using NiflySharp.Blocks;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using Xunit;
 
@@ -628,6 +629,221 @@ namespace NiflySharp.Test
             var fileInfoOutput = new FileInfo($"{OutputDirectory}/{TestName}.nif");
             var fileInfoExpected = new FileInfo($"{ExpectedDirectory}/{TestName}.nif");
             Assert.True(FilesAreEqual(fileInfoOutput, fileInfoExpected));
+        }
+
+        // Morrowind (file version 4.0.0.2) files use inline block types, a boolean size of four
+        // bytes, a linked list of extra data and blocks that were removed in later versions.
+        const string MorrowindDirectory = $"{AssetsDirectory}/V4.0.0.2";
+
+        private static int GetBlockIndex(NifFile nif, INiObject block)
+        {
+            Assert.True(nif.GetBlockIndex(block, out int index));
+            return index;
+        }
+
+        private static void LoadAndSaveMorrowind(string testName, string fileName)
+        {
+            var nif = new NifFile();
+            Assert.Equal(0, nif.Load($"{MorrowindDirectory}/{fileName}"));
+            Assert.True(nif.Header.Version.IsMW());
+            Assert.True(nif.Header.HasInlineBlockTypes);
+            Assert.False(nif.HasUnknownBlocks);
+            Assert.Equal(0, nif.Save($"{OutputDirectory}/{testName}.nif"));
+
+            var fileInfoOutput = new FileInfo($"{OutputDirectory}/{testName}.nif");
+            var fileInfoExpected = new FileInfo($"{ExpectedDirectory}/{testName}.nif");
+            Assert.True(FilesAreEqual(fileInfoOutput, fileInfoExpected));
+        }
+
+        [Fact(DisplayName = "Load and save static file (MW)")]
+        public void LoadAndSave_Static_MW()
+        {
+            LoadAndSaveMorrowind("LoadAndSave_Static_MW", "Static.nif");
+        }
+
+        [Fact(DisplayName = "Load and save billboard file (MW)")]
+        public void LoadAndSave_Billboard_MW()
+        {
+            LoadAndSaveMorrowind("LoadAndSave_Billboard_MW", "Billboard.nif");
+        }
+
+        [Fact(DisplayName = "Load and save skinned file (MW)")]
+        public void LoadAndSave_Skinned_MW()
+        {
+            LoadAndSaveMorrowind("LoadAndSave_Skinned_MW", "Skinned.nif");
+        }
+
+        [Fact(DisplayName = "Load and save particle file (MW)")]
+        public void LoadAndSave_Particles_MW()
+        {
+            LoadAndSaveMorrowind("LoadAndSave_Particles_MW", "Particles.nif");
+        }
+
+        [Fact(DisplayName = "Load and save rotating particle file (MW)")]
+        public void LoadAndSave_RotatingParticles_MW()
+        {
+            LoadAndSaveMorrowind("LoadAndSave_RotatingParticles_MW", "RotatingParticles.nif");
+        }
+
+        [Fact(DisplayName = "Load and save UV controller file (MW)")]
+        public void LoadAndSave_UVController_MW()
+        {
+            LoadAndSaveMorrowind("LoadAndSave_UVController_MW", "UVController.nif");
+        }
+
+        [Fact(DisplayName = "Load and save texture effect file (MW)")]
+        public void LoadAndSave_TextureEffect_MW()
+        {
+            LoadAndSaveMorrowind("LoadAndSave_TextureEffect_MW", "TextureEffect.nif");
+        }
+
+        [Fact(DisplayName = "Load and save morph file (MW)")]
+        public void LoadAndSave_Morph_MW()
+        {
+            LoadAndSaveMorrowind("LoadAndSave_Morph_MW", "Morph.nif");
+        }
+
+        [Fact(DisplayName = "Load and save path controller file (MW)")]
+        public void LoadAndSave_PathController_MW()
+        {
+            LoadAndSaveMorrowind("LoadAndSave_PathController_MW", "PathController.nif");
+        }
+
+        [Fact(DisplayName = "Load and save animation sequence file (MW)")]
+        public void LoadAndSave_Sequence_MW()
+        {
+            LoadAndSaveMorrowind("LoadAndSave_Sequence_MW", "Sequence.kf");
+        }
+
+        [Fact(DisplayName = "Save unmodified file without changes (MW)")]
+        public void SaveUnmodified_MW()
+        {
+            // Every file of the game has to be written back byte for byte when nothing is changed
+            string[] fileNames = [
+                "Static.nif",
+                "Billboard.nif",
+                "Skinned.nif",
+                "Particles.nif",
+                "RotatingParticles.nif",
+                "UVController.nif",
+                "TextureEffect.nif",
+                "Morph.nif",
+                "PathController.nif",
+                "Sequence.kf"];
+
+            var saveOptions = new NifFileSaveOptions
+            {
+                RemoveUnreferencedBlocks = false,
+                SortBlocks = false,
+                UpdateBounds = false
+            };
+
+            foreach (var fileName in fileNames)
+            {
+                byte[] original = File.ReadAllBytes($"{MorrowindDirectory}/{fileName}");
+
+                var nif = new NifFile();
+                using var input = new MemoryStream(original, false);
+                Assert.Equal(0, nif.Load(input));
+
+                using var output = new MemoryStream();
+                Assert.Equal(0, nif.Save(output, saveOptions));
+
+                Assert.True(original.AsSpan().SequenceEqual(output.ToArray()), fileName);
+            }
+        }
+
+        [Fact(DisplayName = "Read blocks of static file (MW)")]
+        public void ReadBlocks_Static_MW()
+        {
+            var nif = new NifFile();
+            Assert.Equal(0, nif.Load($"{MorrowindDirectory}/Static.nif"));
+
+            var root = nif.GetRootNode();
+            Assert.NotNull(root);
+            Assert.Equal("EditorMarker_box_02", root.Name?.String);
+            Assert.Equal([0], nif.Header.RootBlockIds);
+
+            // Extra data is a linked list up to file version 4.2.2.0
+            var extraData = nif.GetBlock<NiStringExtraData>(root.ExtraData);
+            Assert.NotNull(extraData);
+            Assert.Equal("MRK", extraData.StringData?.String);
+            Assert.True(extraData.NextExtraData.IsEmpty());
+
+            Assert.NotNull(nif.Blocks.OfType<RootCollisionNode>().FirstOrDefault());
+
+            var shapes = nif.GetShapes().ToList();
+            Assert.Equal(2, shapes.Count);
+
+            var shape = shapes[0];
+            Assert.Equal("Tri EditorMarker_box_02", shape.Name?.String);
+            Assert.True(shape.HasVertices);
+            Assert.True(shape.VertexCount > 0);
+
+            // Morrowind stores the render state in properties instead of a shader property
+            Assert.True(shape.Properties.Count > 0);
+            Assert.NotNull(nif.GetBlock<NiMaterialProperty>(shape.Properties.GetBlockRef(0)));
+        }
+
+        [Fact(DisplayName = "Read blocks of particle file (MW)")]
+        public void ReadBlocks_Particles_MW()
+        {
+            var nif = new NifFile();
+            Assert.Equal(0, nif.Load($"{MorrowindDirectory}/Particles.nif"));
+
+            var particleNode = nif.FindBlockByName<NiBSParticleNode>("Blizzard01");
+            Assert.NotNull(particleNode);
+
+            var emitterNode = nif.FindBlockByName<NiBSAnimationNode>("Blizzard01 Emitter");
+            Assert.NotNull(emitterNode);
+
+            var particles = nif.FindBlockByName<NiAutoNormalParticles>("Blizzard");
+            Assert.NotNull(particles);
+
+            var controller = nif.GetBlock<NiParticleSystemController>(particles.Controller);
+            Assert.NotNull(controller);
+            Assert.Equal(GetBlockIndex(nif, emitterNode), controller.Emitter.Index);
+
+            // The particle modifiers form a linked list
+            var gravity = nif.GetBlock<NiGravity>(controller.ParticleModifier);
+            Assert.NotNull(gravity);
+            Assert.Equal(GetBlockIndex(nif, controller), gravity.Controller.Index);
+
+            var growFade = nif.GetBlock<NiParticleGrowFade>(gravity.NextModifier);
+            Assert.NotNull(growFade);
+            Assert.True(growFade.NextModifier.IsEmpty());
+
+            var particleData = nif.GetBlock<NiAutoNormalParticlesData>(particles.DataRef);
+            Assert.NotNull(particleData);
+            Assert.Equal(particleData.NumVertices, particleData.NumParticles);
+        }
+
+        [Fact(DisplayName = "Write multiple root references (MW)")]
+        public void WriteMultipleRoots_MW()
+        {
+            var nif = new NifFile();
+            Assert.Equal(0, nif.Load($"{MorrowindDirectory}/Static.nif"));
+
+            var collisionNode = nif.Blocks.OfType<RootCollisionNode>().FirstOrDefault();
+            Assert.NotNull(collisionNode);
+
+            List<int> rootIds = [0, GetBlockIndex(nif, collisionNode)];
+            nif.Header.SetRootBlockIds(rootIds);
+
+            var saveOptions = new NifFileSaveOptions
+            {
+                RemoveUnreferencedBlocks = false,
+                SortBlocks = false,
+                UpdateBounds = false
+            };
+
+            using var output = new MemoryStream();
+            Assert.Equal(0, nif.Save(output, saveOptions));
+
+            var loaded = new NifFile();
+            using var input = new MemoryStream(output.ToArray(), false);
+            Assert.Equal(0, loaded.Load(input));
+            Assert.Equal(rootIds, loaded.Header.RootBlockIds);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using NiflySharp.Blocks;
+using NiflySharp.Blocks;
 using NiflySharp.Enums;
 using NiflySharp.Extensions;
 using NiflySharp.Interfaces;
@@ -236,14 +236,19 @@ namespace NiflySharp
 
             for (int i = 0; i < Header.BlockCount; i++)
             {
-                // Get block type name for block id
-                string blockTypeStr = Header.GetBlockTypeNameById(i);
-                if (blockTypeStr == null)
+                // Old file versions store the block type in front of each block instead of the header
+                string blockTypeStr;
+                try
                 {
-                    // Read block type string directly from stream
-                    var nistr = new NiString4();
-                    nistr.Sync(streamReversible);
-                    blockTypeStr = nistr.Content;
+                    blockTypeStr = Header.HasInlineBlockTypes
+                        ? Header.ReadBlockType(streamReversible)
+                        : Header.GetBlockTypeNameById(i);
+                }
+                catch
+                {
+                    // Truncated or malformed block type data
+                    Clear();
+                    return 1;
                 }
 
                 NiObject block = null;
@@ -294,6 +299,15 @@ namespace NiflySharp
 
                 if (block != null)
                     Blocks.Add(block);
+            }
+
+            try
+            {
+                Header.ReadFooter(streamReader);
+            }
+            catch
+            {
+                // Missing or truncated footer, a default one is written instead
             }
 
             PrepareData();
@@ -373,13 +387,14 @@ namespace NiflySharp
 
             // Retrieve block sizes from stream after writing each block
             var blockSizes = new List<long>(Blocks.Count);
+            int blockIndex = 0;
             foreach (var block in Blocks.OfType<INiStreamable>())
             {
-                if (Header.Version.FileVersion < NiFileVersion.V5_0_0_1)
+                // Old file versions store the block type in front of each block instead of the header
+                if (Header.HasInlineBlockTypes)
                 {
-                    // Write block type name
-                    var nistr = new NiString4(NifBlockNameAttribute.GetBinaryName(block.GetType()));
-                    nistr.Sync(streamReversible);
+                    Header.WriteBlockType(streamReversible, blockIndex);
+                    blockStartPos = streamWriter.Writer.BaseStream.Position;
                 }
 
                 // Write block
@@ -389,11 +404,10 @@ namespace NiflySharp
                 long blockEndPos = streamWriter.Writer.BaseStream.Position;
                 blockSizes.Add(blockEndPos - blockStartPos);
                 blockStartPos = blockEndPos;
+                blockIndex++;
             }
 
-            // End padding
-            streamWriter.Writer.Write(1);
-            streamWriter.Writer.Write(0);
+            Header.WriteFooter(streamWriter);
 
             // Get previous stream pos of block size array and overwrite
             if (streamWriter.BlockSizePos != 0)
@@ -540,6 +554,16 @@ namespace NiflySharp
             {
                 if (controller.ExtraTargets != null)
                     controller.ExtraTargets.KeepEmptyRefs = true;
+            }
+
+            if (Header.Version.FileVersion <= NiFileVersion.V4_2_2_0)
+            {
+                // Old file versions use empty child references as placeholders
+                foreach (var node in Blocks.OfType<NiNode>())
+                {
+                    if (node.Children != null)
+                        node.Children.KeepEmptyRefs = true;
+                }
             }
 
             foreach (var block in Blocks)
@@ -1626,6 +1650,16 @@ namespace NiflySharp
             if (objnet == null)
                 return;
 
+            // Old file versions store the extra data as a linked list
+            SetSortIndices(objnet.ExtraData, sortState);
+
+            var extraData = GetBlock(objnet.ExtraData);
+            while (extraData != null && !sortState.VisitedIndices.Contains(extraData.NextExtraData?.Index ?? NiRef.NPOS))
+            {
+                SetSortIndices(extraData.NextExtraData, sortState);
+                extraData = GetBlock(extraData.NextExtraData);
+            }
+
             if (objnet.ExtraDataList != null)
                 foreach (var r in objnet.ExtraDataList.References)
                     SetSortIndices(r, sortState);
@@ -2164,7 +2198,7 @@ namespace NiflySharp
                                             {
                                                 int weightCount = Math.Min(BoneWeights4.Length, (int)part.NumWeightsPerVertex);
 
-                                                if ((part.HasVertexWeights ?? false) && vertexWeights != null)
+                                                if (part.HasVertexWeights.GetValueOrDefault() && vertexWeights != null)
                                                 {
                                                     ref var vertex = ref vertexDataSpan[vindex];
                                                     vertex.BoneWeights = default;
@@ -2176,7 +2210,7 @@ namespace NiflySharp
                                                     }
                                                 }
 
-                                                if ((part.HasBoneIndices ?? false) && boneIndices != null)
+                                                if (part.HasBoneIndices.GetValueOrDefault() && boneIndices != null)
                                                 {
                                                     ref var vertex = ref vertexDataSpan[vindex];
                                                     vertex.BoneIndices = default;

@@ -28,6 +28,9 @@ namespace NiflySharp
         public void Sync(NiStreamReversible stream)
 		{
 			stream.Sync(ref _index);
+
+			if (_index != NPOS && (_index < 0 || _index > NifConstants.BlockIndexLimit))
+				throw new System.IO.InvalidDataException("Block index is out of range!");
 		}
 	}
 }

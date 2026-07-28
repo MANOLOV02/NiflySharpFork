@@ -42,8 +42,8 @@ namespace NiflySharp
                 int sz = _str.Length > maxLength ? maxLength : _str.Length;
                 stream.Sync(ref sz);
 
-                if (stream.CurrentMode == NiStreamReversible.Mode.Read && sz < 0)
-                    throw new System.IO.InvalidDataException("Read string length is < 0!");
+                if (stream.CurrentMode == NiStreamReversible.Mode.Read && (sz < 0 || sz > NifConstants.ArraySizeLimit))
+                    throw new System.IO.InvalidDataException("Read string length is out of range!");
 
                 var buf = new byte[sz];
 

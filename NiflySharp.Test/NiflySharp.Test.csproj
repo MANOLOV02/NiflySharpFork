@@ -23,6 +23,9 @@
     <None Update="Assets\Expected\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="Assets\V4.0.0.2\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Assets\V20.0.0.5\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

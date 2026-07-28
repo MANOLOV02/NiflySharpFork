@@ -1,4 +1,5 @@
-﻿using NiflySharp.Structs;
+﻿using NiflySharp.Stream;
+using NiflySharp.Structs;
 using System.Numerics;
 
 namespace NiflySharp.Blocks
@@ -9,6 +10,15 @@ namespace NiflySharp.Blocks
         {
             Children = new NiBlockRefArray<NiAVObject>();
             Effects = new NiBlockRefArray<NiDynamicEffect>();
+        }
+
+        public new void BeforeSync(NiStreamReversible stream)
+        {
+            // Old file versions use empty child references as placeholders. KeepEmptyRefs
+            // prevents FinalizeData -> CleanInvalidRefs from stripping them, which would
+            // change the child count and corrupt the round-trip.
+            _children ??= new NiBlockRefArray<NiAVObject>();
+            _children.KeepEmptyRefs = stream.Version.FileVersion <= NiFileVersion.V4_2_2_0;
         }
 
         public MatTransform TransformToParent

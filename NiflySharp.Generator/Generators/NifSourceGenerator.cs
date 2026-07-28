@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -350,24 +350,10 @@ namespace NiflySharp.Enums
                     });
                 }
 
-                if (memberTypeName == "bool?")
+                if (memberTypeName == "NiBool")
                 {
-                    switch (defaultString)
-                    {
-                        case "0":
-                            defaultString = " = false";
-                            break;
-                        case "1":
-                            defaultString = " = true";
-                            break;
-                        case "2":
-                            // Assign value "2" of booleans as null in nullable boolean type (bool?)
-                            defaultString = " = null";
-                            break;
-                        default:
-                            defaultString = $" = {defaultString}";
-                            break;
-                    }
+                    // Bitfield members are stored inside an integer, so they are plain booleans
+                    defaultString = defaultString == "0" ? " = false" : " = true";
                 }
                 else if (nifXml.IsStructType(bitflagsMember))
                 {
@@ -429,7 +415,7 @@ namespace NiflySharp.Enums
                 }
 
                 string memberTypeName = NifXml.DoTypeMapping(SourceGenUtil.NormalizeTypeName(bitflagsMember.Type));
-                if (memberTypeName == "bool?")
+                if (memberTypeName == "NiBool")
                     memberTypeName = "bool";
 
                 if (memberTypeName == "bool" && bitflagsMember.Width > 1)
@@ -681,22 +667,21 @@ namespace NiflySharp.Bitfields
                             // Default string content
                             defaultString = $" = new (\"{defaultString}\")";
                         }
-                        else if (fieldTypeName == "bool?")
+                        else if (fieldTypeName == "NiBool")
                         {
                             switch (defaultString)
                             {
                                 case "0":
+                                case "false":
                                     defaultString = " = false";
                                     break;
                                 case "1":
+                                case "true":
                                     defaultString = " = true";
                                     break;
-                                case "2":
-                                    // Assign value "2" of booleans as null in nullable boolean type (bool?)
-                                    defaultString = " = null";
-                                    break;
                                 default:
-                                    defaultString = $" = {defaultString}";
+                                    // Any other value is kept as the raw value of the boolean
+                                    defaultString = $" = new NiBool {{ RawValue = {defaultString} }}";
                                     break;
                             }
                         }
@@ -858,14 +843,22 @@ namespace NiflySharp.Bitfields
                     lengthString = SourceGenUtil.ReplaceFieldNames(lengthString, nifXml, nifObject, typeName);
 
                     var lengthField = nifObject.Fields.FirstOrDefault(f => f.Name == field.Length);
+
+                    // Only the type that declares the length field recalculates it from the array.
+                    // An inherited length field is owned (and already read) by the base type, so
+                    // overwriting it here would destroy its value while reading.
+                    bool lengthFieldIsOwn = lengthField != null;
+
                     if (lengthField == null)
                     {
                         nifXml.IsFieldInTypeInheritance(nifObject, field.Length, out lengthField);
                     }
 
-                    if (lengthField != null)
+                    if (lengthFieldIsOwn)
                     {
-                        if (!dictArrayCountMembers.ContainsValue(lengthField))
+                        // Keyed by array field so that arrays sharing a length field are all known.
+                        // The same array can be declared more than once for different file versions.
+                        if (!dictArrayCountMembers.ContainsKey(field.Name))
                         {
                             dictArrayCountMembers.Add(field.Name, lengthField);
                         }
@@ -1005,6 +998,7 @@ namespace NiflySharp.Bitfields
 
                 // Build argument setter
                 string syncFuncArg = string.Empty;
+                string syncFuncArgRestore = string.Empty;
                 if (!string.IsNullOrWhiteSpace(field.Arg) && field.Arg != "#ARG#")
                 {
                     var replacedFieldNames = new List<string>();
@@ -1020,12 +1014,18 @@ namespace NiflySharp.Bitfields
                     // Replace all field names in arg string
                     arg = SourceGenUtil.ReplaceFieldNames(arg, nifXml, nifObject, typeName);
 
-                    syncFuncArg = $"stream.Argument = {arg};";
+                    // The argument of this field only applies to this field. Remember the argument
+                    // the object itself was synced with, so that "#ARG#" of any following field
+                    // still resolves to it.
+                    string argBackupName = "prevArg" + SourceGenUtil.NormalizeFieldName(field.Name, null).TrimStart('_');
+
+                    syncFuncArg = $"var {argBackupName} = stream.Argument;\r\nstream.Argument = {arg};";
+                    syncFuncArgRestore = $"stream.Argument = {argBackupName};";
                 }
 
                 if (!string.IsNullOrWhiteSpace(syncFuncArg))
                 {
-                    syncFuncField = $"{syncFuncArg}\r\n{syncFuncField}";
+                    syncFuncField = $"{syncFuncArg}\r\n{syncFuncField.TrimEnd()}\r\n{syncFuncArgRestore}\r\n";
                 }
 
 #if NIF_GENCALC // Calc function doesn't always make sense in IO function and doesn't always have the right order
@@ -1357,23 +1357,33 @@ namespace NiflySharp.Bitfields
 
             string syncFuncArrayCounts = string.Empty;
 
-            foreach (var members in dictArrayCountMembers)
+            // Arrays that are exclusive to different file versions can share one length field.
+            // Only one of them holds data at a time, so the length is the largest of their counts.
+            foreach (var members in dictArrayCountMembers.GroupBy(m => m.Value))
             {
-                string normFieldName = SourceGenUtil.NormalizeFieldName(members.Key, null);
-                string normLengthFieldName = SourceGenUtil.NormalizeFieldName(members.Value.Name, null);
-                string normLengthTypeName = SourceGenUtil.GetFieldTypeName(nifObject, members.Value, out _, out _, out _, out _);
+                string normFieldName = SourceGenUtil.NormalizeFieldName(members.First().Key, null);
+                string normLengthFieldName = SourceGenUtil.NormalizeFieldName(members.Key.Name, null);
+                string normLengthTypeName = SourceGenUtil.GetFieldTypeName(nifObject, members.Key, out _, out _, out _, out _);
 
-                string arrayCountFunc = $"{normLengthFieldName} = ({normLengthTypeName})({normFieldName}?.Count ?? 0);\r\n";
+                string countExpression = $"({normFieldName}?.Count ?? 0)";
+
+                foreach (var otherMember in members.Skip(1))
+                {
+                    string normOtherFieldName = SourceGenUtil.NormalizeFieldName(otherMember.Key, null);
+                    countExpression = $"Math.Max({countExpression}, {normOtherFieldName}?.Count ?? 0)";
+                }
+
+                string arrayCountFunc = $"{normLengthFieldName} = ({normLengthTypeName}){countExpression};\r\n";
 
                 // Create additional conditions for all colliding field definitions (e.g. mismatching types) for the array field
-                string collisionConditionsArray = SourceGenUtil.BuildFieldCollisionConditions(nifXml, members.Key, nifObject, typeName, arrayCountFunc, normFieldName, null, normLengthFieldName, "0");
+                string collisionConditionsArray = SourceGenUtil.BuildFieldCollisionConditions(nifXml, members.First().Key, nifObject, typeName, arrayCountFunc, normFieldName, null, normLengthFieldName, "0");
                 if (!string.IsNullOrWhiteSpace(collisionConditionsArray))
                 {
                     arrayCountFunc = collisionConditionsArray.Replace("\r\n", "\r\n            ");
                 }
 
                 // Create additional conditions for all colliding field definitions (e.g. mismatching types) for the length field
-                string collisionConditionsLengthType = SourceGenUtil.BuildFieldCollisionConditions(nifXml, members.Value.Name, nifObject, typeName, arrayCountFunc, normLengthFieldName, normLengthTypeName, normLengthFieldName, "0");
+                string collisionConditionsLengthType = SourceGenUtil.BuildFieldCollisionConditions(nifXml, members.Key.Name, nifObject, typeName, arrayCountFunc, normLengthFieldName, normLengthTypeName, normLengthFieldName, "0");
                 if (!string.IsNullOrWhiteSpace(collisionConditionsLengthType))
                 {
                     arrayCountFunc = collisionConditionsLengthType.Replace("\r\n", "\r\n            ");

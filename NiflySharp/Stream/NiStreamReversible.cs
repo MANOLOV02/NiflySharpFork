@@ -79,6 +79,32 @@ namespace NiflySharp.Stream
             }
         }
 
+        public void Sync(ref NiBool b)
+        {
+            if (CurrentMode == Mode.Read)
+            {
+                // The raw value is kept as it is, old files often store arbitrary non-zero values
+                if (Version.FileVersion <= NiFileVersion.V4_0_0_2)
+                    b.RawValue = In.Reader.ReadUInt32();
+                else
+                    b.RawValue = In.Reader.ReadByte();
+            }
+            else
+            {
+                uint raw = b.RawValue;
+
+                if (Version.FileVersion <= NiFileVersion.V4_0_0_2)
+                {
+                    Out.Writer.Write(raw);
+                }
+                else
+                {
+                    // Values that don't fit into a byte can only come from an older file version
+                    Out.Writer.Write(raw > byte.MaxValue ? (byte)1 : (byte)raw);
+                }
+            }
+        }
+
         public void Sync(ref bool? b)
         {
             if (CurrentMode == Mode.Read)
@@ -290,6 +316,9 @@ namespace NiflySharp.Stream
 
         public static void ResizeListDefaults<T>(ref List<T> list, int size)
         {
+            if (size < 0 || size > NifConstants.ArraySizeLimit)
+                throw new Exception("List size is out of range!");
+
             list ??= [];
 
             if (list.Count == size)
@@ -304,6 +333,9 @@ namespace NiflySharp.Stream
 
         public static void ResizeArrayDefaults<T>(ref T[] array, int size)
         {
+            if (size < 0 || size > NifConstants.ArraySizeLimit)
+                throw new Exception("Array size is out of range!");
+
             array ??= new T[size];
 
             if (array.Length == size)
@@ -372,6 +404,9 @@ namespace NiflySharp.Stream
 
                 if (size < 0)
                     throw new Exception("Read list size is < 0!");
+
+                if (size > NifConstants.ArraySizeLimit)
+                    throw new Exception("Read list size is too large!");
 
                 ResizeListDefaults(ref list, size);
             }
@@ -892,8 +927,19 @@ namespace NiflySharp.Stream
                 case TypeCode.Object:
                     if (typeSyncInfo.IsStreamable)
                     {
-                        t ??= (ValueT)Activator.CreateInstance(typeof(ValueT));
-                        ((INiStreamable)t).Sync(this);
+                        if (typeof(ValueT).IsValueType)
+                        {
+                            // Casting a struct to the interface boxes a copy of it, so the synced
+                            // value has to be taken back out of the box afterwards
+                            var streamable = (INiStreamable)t;
+                            streamable.Sync(this);
+                            t = (ValueT)streamable;
+                        }
+                        else
+                        {
+                            t ??= (ValueT)Activator.CreateInstance(typeof(ValueT));
+                            ((INiStreamable)t).Sync(this);
+                        }
                     }
                     else if (typeSyncInfo.IsHalf)
                     {

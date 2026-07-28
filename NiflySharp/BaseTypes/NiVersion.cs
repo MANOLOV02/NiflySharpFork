@@ -142,6 +142,11 @@ namespace NiflySharp
             return (FileVersion == NiFileVersion.V20_2_0_7 && UserVersion >= 11) || IsOB();
         }
 
+        public bool IsMW()
+        {
+            return FileVersion == NiFileVersion.V4_0_0_2 && UserVersion == 0;
+        }
+
         public bool IsOB()
         {
             return ((FileVersion == NiFileVersion.V10_1_0_106 || FileVersion == NiFileVersion.V10_2_0_0) && UserVersion >= 3 && UserVersion < 11)
@@ -177,6 +182,11 @@ namespace NiflySharp
         public bool IsSF()
         {
             return FileVersion == NiFileVersion.V20_2_0_7 && StreamVersion >= 172 && StreamVersion <= 175;
+        }
+
+        public static NiVersion GetMW()
+        {
+            return new NiVersion(NiFileVersion.V4_0_0_2, 0, 0);
         }
 
         public static NiVersion GetOB()
