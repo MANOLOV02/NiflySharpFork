@@ -18,7 +18,8 @@ This is a rewrite of the C++ version of [nifly](https://github.com/ousnius/nifly
   - Fallout 4
   - Fallout 4 VR
   - Fallout 76 (mostly untested)
-  - The Elder Scrolls IV: Oblivion (works, but mostly untested)
+  - The Elder Scrolls III: Morrowind
+  - The Elder Scrolls IV: Oblivion
   - The Elder Scrolls V: Skyrim
   - The Elder Scrolls V: Skyrim Special Edition
   - The Elder Scrolls V: Skyrim VR
