@@ -12,6 +12,8 @@ namespace NiflySharp.Blocks
         public bool HasTextureSet => !_textureSet?.IsEmpty() ?? false;
         public NiBlockRef<BSShaderTextureSet> TextureSetRef { get => _textureSet; set => _textureSet = value; }
 
+        public TexClampMode TextureClampMode { get => _textureClampMode; set => _textureClampMode = value; }
+
         public BSShaderType155 ShaderType_FO76_SF { get => _shaderType_BSST155; set => _shaderType_BSST155 = value; }
 
         /// <summary>
