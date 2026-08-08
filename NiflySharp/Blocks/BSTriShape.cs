@@ -46,6 +46,15 @@ namespace NiflySharp.Blocks
         internal List<Color4> rawVertexColors;      // temporary copy filled by UpdateRawColors function
         internal List<float> rawEyeData;            // temporary copy filled by UpdateRawEyeData function
 
+        // Kept by BeforeSync, put back by AfterSync
+        private bool _countersStashed;
+        private ushort _stashNumVertices;
+        private uint _stashNumTriangles_ui;
+        private ushort _stashNumTriangles_us;
+        private uint _stashDataSize;
+        private uint _stashParticleDataSize;
+        private List<Triangle> _stashParticleTriangles;
+
         public BSTriShape()
         {
             _boundMinMax = new float[6];
@@ -71,6 +80,19 @@ namespace NiflySharp.Blocks
 
                 if (stream.Version.IsSSE() && IsSkinned)
                 {
+                    RestoreStashedCounters();
+
+                    _stashNumVertices = _numVertices;
+                    _stashNumTriangles_ui = _numTriangles_ui;
+                    _stashNumTriangles_us = _numTriangles_us;
+                    _stashDataSize = _dataSize;
+                    _stashParticleDataSize = _particleDataSize;
+
+                    // Particle triangles are sized by the triangle count, which is written
+                    // as zero below, so the write truncates them away. Keep a copy.
+                    _stashParticleTriangles = _particleTriangles?.Count > 0 ? [.. _particleTriangles] : null;
+                    _countersStashed = true;
+
                     // Triangle and vertex data is in partition instead
                     _numVertices = 0;
                     _numTriangles_ui = 0;
@@ -84,14 +106,55 @@ namespace NiflySharp.Blocks
 
                 if (stream.Version.IsSSE())
                 {
-                    if (_particleDataSize > 0)
-                        _particleDataSize = (uint)((_numVertices * 6) + (numTris * 3));
-
                     if (this is BSDynamicTriShape bsdts)
                     {
                         _numVertices = (ushort)(bsdts.Vertices?.Count ?? 0);
                     }
+
+                    // A reader sizes the particle arrays from the vertex and triangle counts
+                    // as written, not from the ones this shape holds, so the size has to be
+                    // derived from those too. On a skinned shape both are zeroed above (bar
+                    // the vertex count on BSDynamicTriShape), leaving nothing to point at.
+                    if (_particleDataSize > 0)
+                    {
+                        uint writtenTris = _numTriangles_ui > 0 ? _numTriangles_ui : _numTriangles_us;
+                        _particleDataSize = (uint)((_numVertices * 6) + (writtenTris * 3));
+                    }
                 }
+            }
+        }
+
+        public new void AfterSync(NiStreamReversible stream)
+        {
+            RestoreStashedCounters();
+        }
+
+        /// <summary>
+        /// Puts back the counters <see cref="BeforeSync"/> zeroes for skinned SSE shapes.
+        /// Without this the shape is left reporting no vertices and no triangles after a
+        /// save, which silently disables every Set* method and makes the next save
+        /// recompute a zero data size from the zeroed counts.
+        /// </summary>
+        private void RestoreStashedCounters()
+        {
+            if (!_countersStashed)
+                return;
+
+            _countersStashed = false;
+
+            // BSDynamicTriShape keeps the count BeforeSync assigned from its dynamic vertices
+            if (this is not BSDynamicTriShape)
+                _numVertices = _stashNumVertices;
+
+            _numTriangles_ui = _stashNumTriangles_ui;
+            _numTriangles_us = _stashNumTriangles_us;
+            _dataSize = _stashDataSize;
+            _particleDataSize = _stashParticleDataSize;
+
+            if (_stashParticleTriangles != null)
+            {
+                _particleTriangles = _stashParticleTriangles;
+                _stashParticleTriangles = null;
             }
         }
 
